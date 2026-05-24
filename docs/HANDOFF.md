@@ -92,14 +92,14 @@ npx evenhub qr --url http://<PC の LAN IP>:5173
 pnpm pack:ehpk
 ```
 
-→ プロジェクトルートに `g2-run-hud-0.2.4.ehpk` が生成される。
+→ プロジェクトルートに `g2-run-hud-0.2.5.ehpk` が生成される。
 （`pnpm pack` だと pnpm の built-in tarball コマンドが走って `.tgz` が出てしまうので注意）
 
 アップロード手順：
 
 1. Even Hub の開発者ポータル（https://hub.evenrealities.com）にログイン
 2. `New plugin` → `.ehpk` をアップロード
-3. プラグイン情報を確認（package_id: `com.spwebcreat.g2runhud` / version: `0.2.4`）
+3. プラグイン情報を確認（package_id: `com.spwebcreat.g2runhud` / version: `0.2.5`）
 4. テスト配信またはサイドロード URL をスマホで開く
 5. Even Realities アプリ内で起動 → G2 に HUD が表示される
 6. 初回起動時に位置情報の許可ダイアログが出るので「許可」を選ぶ
@@ -218,9 +218,14 @@ even-g2-run/
 
 ## バージョン情報
 
+- v0.2.5（2026-05-24）: メッセージ中央寄せ + 終了操作の文言修正
+  - idle / paused メッセージを全角スペース padding で中央寄せ近似
+  - paused 時の終了案内を「ダブルタップで終了」→ **「長押しで終了」** に修正
+    （長押しは G2 ハードレベルでアプリ強制終了する挙動。`SYSTEM_EXIT_EVENT` 受信時に cleanup 実行）
+  - ダブルタップは引き続きリセット動作
 - v0.2.4（2026-05-24）: メッセージ領域に START / END 視覚ガイド追加
   - idle 時: `START ◀`（タップで開始のヒント・スタート時のみ表示）
-  - paused 時: `END   ダブルタップで終了`（ダブルタップで idle に戻すアナウンス）
+  - paused 時: `END   ダブルタップで終了`（v0.2.5 で「長押しで終了」に訂正）
   - 実機計測精度確認済: Apple Watch 比較で距離 +0.02km、ペース差 6 秒（許容範囲）
 - v0.2.3（2026-05-24）: アイコン廃止 + 3x3 グリッドレイアウト確定 + ステータス記号化
   - アイコン（v0.2.x で試行）を完全廃止し、純テキスト 3x3 グリッド構成に

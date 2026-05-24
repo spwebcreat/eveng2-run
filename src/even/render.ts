@@ -59,12 +59,18 @@ function heartRateText(state: RunState): string {
 
 /**
  * 中央メッセージ領域の内容を決定。
- * - idle: "START ◀"（タップで開始の視覚的ヒント・スタート時のみ）
- * - paused: "END   ダブルタップで終了"（ダブルタップで idle に戻すアナウンス）
+ * - idle: "START ◀"（タップで開始の視覚的ヒント・中央寄せ）
+ * - paused: "END   長押しで終了"（長押しは G2 ハードレベルでアプリ終了するため文言のみ・中央寄せ）
  * - lap 表示中: ラップ情報 + ランダムメッセージ
  * - エラー時: エラー詳細
  * - GPS 待ち時: 誘導文
  * - 通常走行中: 直近ラップ message（あれば、無ければ空白）
+ *
+ * 中央寄せ方法:
+ *   G2 SDK の TextContainerProperty はアラインメントプロパティを持たないため、
+ *   leading に全角スペース (U+3000 ≈ 32px 幅) を入れて視覚的に中央寄せを近似する。
+ *   container 幅 496px / padding 4px → 有効幅 488px。
+ *   実機 font は proportional のため厳密な中央配置は不可。実機確認後に微調整可。
  */
 function messageText(state: RunState): string {
   if (state.screenMode === 'error') {
@@ -82,10 +88,12 @@ function messageText(state: RunState): string {
     return `LAP ${lap.km}  ${lapPace} / AVG ${avgPace}\n${msg}`
   }
   if (state.screenMode === 'idle') {
-    return 'START ◀'
+    // START ◀ は短いので全角スペース 7 個で中央寄せ近似
+    return '　　　　　　　START ◀'
   }
   if (state.screenMode === 'paused') {
-    return 'END   ダブルタップで終了'
+    // 長押しは G2 ハードレベルでアプリ終了する挙動（SYSTEM_EXIT_EVENT 受信 → cleanup）
+    return '　　END   長押しで終了'
   }
   // running: 直近ラップの message があれば残す（無ければ空白）
   return state.message ?? ' '
