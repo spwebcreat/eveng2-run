@@ -1,0 +1,32 @@
+# 依存・ビルド成果物
+node_modules/
+dist/
+
+# .ehpk（リリース成果物・GitHub Releases で配信する想定）
+*.ehpk
+*.tgz
+
+# Vite キャッシュ
+.vite/
+
+# OS
+.DS_Store
+**/.DS_Store
+
+# エディタ
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ローカル設定 / シークレット
+.env
+.env.local
+.env.*.local
+
+# Claude 環境固有（個人ハンドオフ・学習メモは別途管理）
+.claude/.local/
+.claude/handoff/local-*
+
+# シミュレータ・実機キャプチャ
+glasses_*.png

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no"
+    />
+    <title>G2 Run HUD</title>
+    <link rel="stylesheet" href="/src/styles/app.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="app-header">
+        <h1>G2 Run HUD</h1>
+        <p>iPhone の位置情報で距離・ペース・経過時間を G2 に表示します。</p>
+      </header>
+
+      <section class="card">
+        <h2>モード</h2>
+        <label class="mode-toggle" id="mode-toggle-label">
+          <input type="checkbox" id="test-mode-checkbox" />
+          <span>
+            <span class="label">テストモード</span>
+            <div class="hint">自動でキロ 6 分ペース進行・GPS 不要</div>
+          </span>
+        </label>
+        <div class="notice info" id="mode-notice">
+          QR サイドロード中は実 GPS が動かないため、ローカル開発ではテストモード推奨です。
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>G2 表示プレビュー</h2>
+        <pre class="hud-preview" id="hud-preview">起動中…</pre>
+      </section>
+
+      <section class="card">
+        <h2>計測データ</h2>
+        <div class="metrics">
+          <div class="metric">
+            <div class="key">距離</div>
+            <div class="value" id="metric-distance">0.00 km</div>
+          </div>
+          <div class="metric">
+            <div class="key">平均ペース</div>
+            <div class="value" id="metric-avg-pace">--'--"/km</div>
+          </div>
+          <div class="metric">
+            <div class="key">経過時間</div>
+            <div class="value" id="metric-time">00:00</div>
+          </div>
+          <div class="metric">
+            <div class="key">心拍</div>
+            <div class="value" id="metric-hr">-- bpm</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>操作</h2>
+        <div class="actions">
+          <button class="btn primary" id="btn-start-pause" type="button">スタート</button>
+          <button class="btn warning" id="btn-reset" type="button" disabled>リセット</button>
+          <button class="btn" id="btn-laps-clear" type="button" disabled>履歴クリア</button>
+        </div>
+        <div class="notice info" id="action-hint" style="display: none">
+          G2 本体でも操作可能: Tap = スタート/一時停止 / Double Tap = リセット
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>ラップ履歴</h2>
+        <div class="laps" id="laps-container">
+          <div class="laps-empty">1km を超えるとラップが記録されます。</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>ステータス</h2>
+        <div class="status-bar">
+          <div>
+            状態: <strong id="status-status">idle</strong> /
+            画面: <strong id="status-screen">idle</strong>
+          </div>
+          <div>
+            G2 ブリッジ:
+            <strong class="bridge-state" id="status-bridge" data-state="waiting">接続待ち</strong>
+          </div>
+          <div>位置情報:
+            <strong id="status-geo">未開始</strong>
+          </div>
+        </div>
+        <div class="notice danger" id="error-notice" style="display: none"></div>
+      </section>
+
+      <footer class="footer">
+        v0.1.0 / Even Hub Plugin / 旦那様向け Hub アップロード手順は <code>docs/HANDOFF.md</code>
+      </footer>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,289 @@
+/* G2 Run HUD コンパニオン UI（スマホ縦持ち WebView 想定）
+   - dark theme（#232323 + #E5E5E5）= minimal template と同じ Even Realities brand
+   - 320px〜800px 幅で破綻なし
+   - タッチターゲット 44x44 以上 */
+
+:root {
+  --bg: #232323;
+  --bg-soft: #2d2d2d;
+  --bg-card: #1c1c1c;
+  --text: #e5e5e5;
+  --text-muted: #9a9a9a;
+  --accent: #6ee37a;       /* G2 グリーン基調の指し色 */
+  --accent-soft: #2a4a30;
+  --warning: #f0a13a;
+  --danger: #d96363;
+  --border: #3a3a3a;
+  --radius: 12px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, 'Hiragino Sans', 'Yu Gothic UI',
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 16px;
+  gap: 16px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* ヘッダー */
+.app-header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  letter-spacing: 0.04em;
+}
+.app-header p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* カード共通 */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.card h2 {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 12px 0;
+}
+
+/* テストモードチェック */
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+  user-select: none;
+}
+.mode-toggle input[type='checkbox'] {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.mode-toggle .label {
+  flex: 1;
+  font-size: 15px;
+}
+.mode-toggle .hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.mode-toggle.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* HUD プレビュー（モノスペース・G2 表示の近似） */
+.hud-preview {
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  background: #0c1f12;
+  color: var(--accent);
+  border: 1px solid var(--accent-soft);
+  border-radius: 8px;
+  padding: 16px;
+  white-space: pre;
+  font-size: 15px;
+  line-height: 1.45;
+  min-height: 9em;
+  overflow: hidden;
+}
+
+/* メトリクスグリッド */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (min-width: 480px) {
+  .metrics {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.metric {
+  background: var(--bg-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.metric .key {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.metric .value {
+  font-size: 18px;
+  font-weight: 600;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ボタン群 */
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (min-width: 480px) {
+  .actions {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.btn {
+  min-height: 48px;
+  min-width: 44px;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.btn:hover {
+  background: #3a3a3a;
+}
+.btn:active {
+  background: #444;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn.primary {
+  background: var(--accent);
+  color: #102218;
+  border-color: var(--accent);
+}
+.btn.primary:hover {
+  background: #82eb8d;
+}
+.btn.warning {
+  background: var(--warning);
+  color: #2a1a05;
+  border-color: var(--warning);
+}
+.btn.warning:hover {
+  background: #f7b25b;
+}
+.btn.danger {
+  background: var(--danger);
+  color: #1f0808;
+  border-color: var(--danger);
+}
+
+/* ステータス行 */
+.status-bar {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.status-bar strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.status-bar .bridge-state[data-state='connected'] {
+  color: var(--accent);
+}
+.status-bar .bridge-state[data-state='waiting'],
+.status-bar .bridge-state[data-state='unavailable'] {
+  color: var(--warning);
+}
+.status-bar .bridge-state[data-state='error'] {
+  color: var(--danger);
+}
+
+/* ラップ履歴 */
+.laps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lap-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: var(--bg-soft);
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+.lap-row .label {
+  color: var(--text-muted);
+}
+.lap-row .message {
+  flex: 1;
+  text-align: right;
+  color: var(--accent);
+  margin-left: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.laps-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* エラー / お知らせ表示 */
+.notice {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-top: 8px;
+}
+.notice.warning {
+  background: rgba(240, 161, 58, 0.12);
+  color: var(--warning);
+  border: 1px solid rgba(240, 161, 58, 0.3);
+}
+.notice.danger {
+  background: rgba(217, 99, 99, 0.12);
+  color: var(--danger);
+  border: 1px solid rgba(217, 99, 99, 0.3);
+}
+.notice.info {
+  background: rgba(110, 227, 122, 0.08);
+  color: var(--accent);
+  border: 1px solid rgba(110, 227, 122, 0.25);
+}
+
+/* ヘルプフッター */
+.footer {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding-top: 8px;
+}
