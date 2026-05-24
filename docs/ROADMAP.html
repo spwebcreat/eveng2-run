@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>G2 Run HUD 開発ロードマップ</title>
+<style>
+  :root {
+    /* 色: テキスト/背景 */
+    --c-text: #2a2a2a;
+    --c-text-muted: #555;
+    --c-text-faint: #666;
+    --c-bg: #fafaf7;
+    --c-surface: #ffffff;
+    --c-border: #e5e0d4;
+    --c-border-strong: #d8d4cc;
+    --c-muted-surface: #f0ede4;
+    --c-row-hover: #faf8f3;
+    --c-table-divider: #ece8e0;
+    --c-code-text: #4a4a4a;
+
+    /* ステータス: done */
+    --c-done: #2a6a2a;
+    --c-done-bg: #d4edd4;
+    --c-done-surface: #f5fbf5;
+
+    /* ステータス: now */
+    --c-now: #6a4a1a;
+    --c-now-bg: #fff8e0;
+    --c-now-accent: #d4a020;
+    --c-now-badge: #ffe39c;
+
+    /* ステータス: next */
+    --c-next: #6a5a2a;
+    --c-next-badge: #efeae0;
+
+    /* ステータス: future */
+    --c-future: #5a3a8a;
+    --c-future-bg: #ede8f3;
+
+    /* フォント・余白 */
+    --font-h1: 22px;
+    --font-h2: 18px;
+    --font-h3: 16px;
+    --font-body: 14px;
+    --font-small: 13px;
+    --font-xsmall: 11px;
+    --space-section: 32px;
+    --space-group: 16px;
+
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-pill: 12px;
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --font-h1: 28px;
+      --font-h2: 20px;
+      --space-section: 48px;
+      --space-group: 24px;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Segoe UI", sans-serif;
+    line-height: 1.7;
+    color: var(--c-text);
+    background: var(--c-bg);
+    margin: 0 auto;
+    padding: 20px 14px;
+    max-width: 1100px;
+    font-size: var(--font-body);
+  }
+
+  @media (min-width: 768px) {
+    body { padding: 32px 24px; }
+  }
+
+  h1 {
+    font-size: var(--font-h1);
+    border-bottom: 3px solid var(--c-now-accent);
+    padding-bottom: 10px;
+    margin: 0 0 12px;
+    line-height: 1.3;
+  }
+  h2 {
+    font-size: var(--font-h2);
+    margin: 0 0 12px;
+    line-height: 1.3;
+  }
+  h3 {
+    font-size: var(--font-h3);
+    margin: 20px 0 8px;
+    line-height: 1.4;
+  }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; margin: 8px 0; }
+  li { margin: 4px 0; }
+
+  code {
+    font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.92em;
+    background: var(--c-muted-surface);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--c-code-text);
+  }
+
+  .meta {
+    font-size: var(--font-small);
+    color: var(--c-text-faint);
+    margin: 0 0 16px;
+  }
+  .meta code { background: transparent; padding: 0; color: var(--c-text-faint); }
+
+  /* 凡例 */
+  .legend {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 12px 0 28px;
+    font-size: var(--font-xsmall);
+  }
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+  }
+  .legend-item.done { background: var(--c-done-bg); color: var(--c-done); }
+  .legend-item.now { background: var(--c-now-badge); color: var(--c-now); }
+  .legend-item.next { background: var(--c-next-badge); color: var(--c-next); }
+  .legend-item.future { background: var(--c-future-bg); color: var(--c-future); }
+
+  section { margin: var(--space-section) 0; }
+
+  /* Phase 進捗バー */
+  .progress-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 16px 0 8px;
+  }
+  .progress-segment {
+    flex: 1 1 0;
+    min-width: 120px;
+    padding: 14px 12px;
+    border-radius: var(--radius-md);
+    text-align: center;
+    font-size: var(--font-small);
+    border: 2px solid transparent;
+  }
+  .progress-segment.done {
+    background: var(--c-done-surface);
+    border-color: var(--c-done);
+    color: var(--c-done);
+  }
+  .progress-segment.now {
+    background: var(--c-now-bg);
+    border-color: var(--c-now-accent);
+    color: var(--c-now);
+  }
+  .progress-segment.next {
+    background: var(--c-surface);
+    border-color: var(--c-border-strong);
+    color: var(--c-next);
+  }
+  .progress-segment.future {
+    background: var(--c-future-bg);
+    border-color: var(--c-future);
+    color: var(--c-future);
+  }
+  .progress-segment .phase-letter {
+    display: block;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .progress-segment .phase-status {
+    display: block;
+    font-size: var(--font-xsmall);
+    opacity: 0.85;
+  }
+
+  /* 現在地カード */
+  .now-here-card {
+    background: var(--c-now-bg);
+    border: 1px solid var(--c-now-accent);
+    border-radius: var(--radius-md);
+    padding: 18px 20px;
+    margin: var(--space-group) 0;
+  }
+  .now-here-card h2 {
+    color: var(--c-now);
+    margin-bottom: 8px;
+  }
+  .now-here-card .now-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 768px) {
+    .now-here-card .now-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .now-here-card .now-current strong,
+  .now-here-card .now-backlog strong {
+    display: block;
+    margin: 4px 0 6px;
+    color: var(--c-text);
+  }
+  .now-here-card .now-current small,
+  .now-here-card .now-backlog small {
+    display: block;
+    color: var(--c-text-muted);
+    margin: 2px 0;
+    font-size: var(--font-small);
+  }
+  .now-here-card .label {
+    font-size: var(--font-xsmall);
+    color: var(--c-now);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+  }
+
+  /* 計測精度テーブル */
+  .accuracy-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--c-surface);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin: 12px 0;
+    font-size: var(--font-small);
+  }
+  .accuracy-table th {
+    background: var(--c-muted-surface);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--c-border-strong);
+  }
+  .accuracy-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--c-table-divider);
+  }
+
+  /* Phase カード */
+  .phase-card {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    padding: 18px 20px;
+    margin: 16px 0;
+  }
+  .phase-card.done {
+    background: var(--c-done-surface);
+    border-color: var(--c-done);
+  }
+  .phase-card.now {
+    background: var(--c-now-bg);
+    border-color: var(--c-now-accent);
+  }
+  .phase-card.next {
+    border-color: var(--c-border-strong);
+  }
+  .phase-card.future {
+    background: var(--c-future-bg);
+    border-color: var(--c-future);
+  }
+  .phase-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .phase-card-title {
+    font-size: var(--font-h3);
+    font-weight: 700;
+    margin: 0;
+  }
+  .phase-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    font-size: var(--font-xsmall);
+    font-weight: 600;
+  }
+  .phase-badge.done { background: var(--c-done-bg); color: var(--c-done); }
+  .phase-badge.now { background: var(--c-now-badge); color: var(--c-now); }
+  .phase-badge.next { background: var(--c-next-badge); color: var(--c-next); }
+  .phase-badge.future { background: var(--c-future-bg); color: var(--c-future); }
+
+  .phase-meta {
+    font-size: var(--font-small);
+    color: var(--c-text-faint);
+    margin: 0 0 8px;
+  }
+
+  .phase-features {
+    margin: 8px 0;
+  }
+  .phase-features li {
+    font-size: var(--font-small);
+    color: var(--c-text-muted);
+  }
+
+  /* 注意ボックス */
+  .note {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-left: 4px solid var(--c-now-accent);
+    padding: 12px 16px;
+    margin: 12px 0;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-small);
+    color: var(--c-text-muted);
+  }
+  .note.warning {
+    border-left-color: var(--c-future);
+    background: var(--c-future-bg);
+    color: var(--c-future);
+  }
+  .note strong { color: var(--c-text); }
+
+  /* G2 表示プレビュー（HUD レイアウト視覚化） */
+  .hud-preview {
+    background: #000;
+    color: #4ade80;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    margin: 12px 0;
+    font-size: 12px;
+    line-height: 1.6;
+    overflow-x: auto;
+  }
+  .hud-preview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    aspect-ratio: 576 / 288;
+  }
+  .hud-cell {
+    padding: 6px;
+    border: 1px dashed #2a5a3a;
+    border-radius: 2px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-size: 11px;
+  }
+  .hud-cell.message-cell {
+    grid-column: 1 / -1;
+    background: rgba(74, 222, 128, 0.08);
+  }
+  .hud-cell .label {
+    font-size: 9px;
+    opacity: 0.6;
+    margin-bottom: 2px;
+  }
+
+  /* テーブル汎用 */
+  table.simple {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: var(--font-small);
+    background: var(--c-surface);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  table.simple th {
+    background: var(--c-muted-surface);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--c-border-strong);
+  }
+  table.simple td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--c-table-divider);
+    vertical-align: top;
+  }
+
+  /* リンク */
+  a {
+    color: var(--c-now);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s ease;
+  }
+  a:hover { border-bottom-color: var(--c-now); }
+
+  /* フッター */
+  footer {
+    margin-top: var(--space-section);
+    padding-top: 16px;
+    border-top: 1px solid var(--c-border);
+    font-size: var(--font-xsmall);
+    color: var(--c-text-faint);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>G2 Run HUD 開発ロードマップ</h1>
+  <p class="meta">
+    作成: 2026-05-24（日） ／ 最終更新: 2026-05-24（日）／
+    対象: Even Realities G2 / Even Hub Plugin ／
+    リポジトリ: <a href="https://github.com/spwebcreat/eveng2-run">github.com/spwebcreat/eveng2-run</a>
+  </p>
+
+  <div class="legend" aria-label="ステータス凡例">
+    <span class="legend-item done">✓ 完了</span>
+    <span class="legend-item now">● 進行中</span>
+    <span class="legend-item next">▸ 次</span>
+    <span class="legend-item future">◯ 長期</span>
+  </div>
+</header>
+
+<!-- ============================================================
+     Phase 進捗バー
+============================================================ -->
+<section>
+  <h2>Phase 進捗</h2>
+  <div class="progress-bar">
+    <div class="progress-segment done">
+      <span class="phase-letter">1</span>
+      <span class="phase-status">MVP 完了 5/24</span>
+    </div>
+    <div class="progress-segment next">
+      <span class="phase-letter">2</span>
+      <span class="phase-status">データ保存</span>
+    </div>
+    <div class="progress-segment future">
+      <span class="phase-letter">3</span>
+      <span class="phase-status">心拍数 (要ネイティブ化)</span>
+    </div>
+    <div class="progress-segment future">
+      <span class="phase-letter">4</span>
+      <span class="phase-status">AI 動的メッセージ</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     現在地カード
+============================================================ -->
+<section>
+  <div class="now-here-card">
+    <h2>📍 今ここ</h2>
+    <div class="now-grid">
+      <div class="now-current">
+        <span class="label">直近完了（2026-05-24）</span>
+        <strong>Phase 1: MVP v0.2.4 リリース</strong>
+        <small>3x3 グリッドレイアウト確定 + メッセージ領域に START / END 視覚ガイド</small>
+        <small>実機計測精度: Apple Watch 比較で距離 +1.9% / ペース差 6 秒（許容範囲）</small>
+        <small>GitHub 初回 push 済（commit <code>7b41a72</code>）</small>
+      </div>
+      <div class="now-backlog">
+        <span class="label">次の候補</span>
+        <strong>Phase 2: データ保存（ラン履歴永続化）</strong>
+        <small>LocalStorage で履歴保存 → コンパニオン UI に履歴タブ追加</small>
+        <small>その後 Phase 3（心拍数・要ネイティブ化）→ Phase 4（AI メッセージ）</small>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     Phase 1: MVP
+============================================================ -->
+<section>
+  <h2>Phase 1: MVP（完了）</h2>
+
+  <div class="phase-card done">
+    <div class="phase-card-head">
+      <h3 class="phase-card-title">v0.2.4 リリース内容</h3>
+      <span class="phase-badge done">✓ 完了 2026-05-24</span>
+    </div>
+    <p class="phase-meta">仕様書 §3〜§17 をベースに MVP 完成。</p>
+
+    <h3>HUD レイアウト（576 × 288 px）</h3>
+    <div class="hud-preview">
+      <div class="hud-preview-grid">
+        <div class="hud-cell"><span class="label">経過時間</span>12:07</div>
+        <div class="hud-cell"><span class="label">距離</span>1.06 km</div>
+        <div class="hud-cell"><span class="label">5月24日</span>16:22</div>
+        <div class="hud-cell message-cell">メッセージ表示領域<br>（START ◀ / END / ラップ情報）</div>
+        <div class="hud-cell"><span class="label">心拍数</span>-- bpm</div>
+        <div class="hud-cell"><span class="label">平均ペース</span>11'27"/km</div>
+        <div class="hud-cell"><span class="label">ステータス</span>RUN ▶</div>
+      </div>
+    </div>
+
+    <h3>主な機能</h3>
+    <ul class="phase-features">
+      <li>距離 / 平均ペース / 経過時間 / 現在時刻 / 心拍プレースホルダー の表示</li>
+      <li>メディアプレーヤー風ステータス記号: <code>RUN ▶</code> / <code>PAUSE ||</code> / <code>READY ▶</code> / <code>GPS</code> / <code>ERROR</code> / <code>LAP</code></li>
+      <li>1 km 自動ラップ検知 + 励ましランダムメッセージ（日本語 10 種）</li>
+      <li>自動 pause / resume（直近 30 秒・5m 未満で pause、5m 以上で resume）</li>
+      <li>GPS 復帰対策（<code>visibilitychange</code> + <code>watchPosition</code> 再起動 + Screen Wake Lock）</li>
+      <li>テストモード切替（GPS なしでキロ 6 分相当のダミー進行）</li>
+      <li>スタート / 一時停止 / リセット（G2 タップ + コンパニオン UI 両対応）</li>
+    </ul>
+
+    <h3>実機計測精度（Apple Watch 比較・2026-05-24）</h3>
+    <table class="accuracy-table">
+      <thead>
+        <tr><th>項目</th><th>Apple Watch</th><th>G2 Run HUD</th><th>誤差</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>時間</td><td>0:12:06</td><td>12:07</td><td>ほぼ一致</td></tr>
+        <tr><td>距離</td><td>1.04 km</td><td>1.06 km</td><td>+1.9 %</td></tr>
+        <tr><td>平均ペース</td><td>11'33"/km</td><td>11'27"/km</td><td>-6 秒</td></tr>
+      </tbody>
+    </table>
+    <p class="phase-meta">許容範囲内・MVP として実用レベル達成。</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     Phase 2: データ保存
+============================================================ -->
+<section>
+  <h2>Phase 2: データ保存（次フェーズ・最優先）</h2>
+
+  <div class="phase-card next">
+    <div class="phase-card-head">
+      <h3 class="phase-card-title">ラン履歴の永続化</h3>
+      <span class="phase-badge next">▸ 次フェーズ</span>
+    </div>
+    <p class="phase-meta">過去のランを振り返れるようにする。</p>
+
+    <h3>保存項目</h3>
+    <ul class="phase-features">
+      <li>日時 / 距離 / 経過時間 / 平均ペース / ラップ配列</li>
+      <li>心拍データ（Phase 3 連携時に追加）</li>
+      <li>使用モード（テスト / 実 GPS）</li>
+    </ul>
+
+    <h3>技術選定候補</h3>
+    <table class="simple">
+      <thead>
+        <tr><th>方式</th><th>容量</th><th>永続性</th><th>難易度</th><th>備考</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>LocalStorage</strong></td><td>~5MB</td><td>ブラウザ単位</td><td>低</td><td>MVP 拡張に最適・シンプル（推奨スタート）</td></tr>
+        <tr><td>IndexedDB</td><td>~50MB+</td><td>ブラウザ単位</td><td>中</td><td>件数増加に強い・検索高速</td></tr>
+        <tr><td>外部 API</td><td>無制限</td><td>サーバー</td><td>高</td><td>アカウント認証必要</td></tr>
+      </tbody>
+    </table>
+
+    <h3>段階的アプローチ</h3>
+    <ul class="phase-features">
+      <li><strong>Phase 2a</strong>: LocalStorage で実装（〜100 件想定・1〜2 セッション）</li>
+      <li><strong>Phase 2b</strong>: IndexedDB 移行（履歴が増えたら・1 セッション）</li>
+      <li><strong>Phase 2c</strong>: Strava / Google Sheets / Notion 連携（要望ベース・各 1〜3 セッション）</li>
+    </ul>
+
+    <h3>実装影響範囲</h3>
+    <ul class="phase-features">
+      <li><code>src/run/state.ts</code>: ラン終了時の履歴保存ロジック追加</li>
+      <li><code>src/storage/</code>（新規）: 履歴 CRUD レイヤ</li>
+      <li><code>index.html</code> + <code>src/main.ts</code>: 履歴タブ UI 追加</li>
+      <li><code>docs/HANDOFF.md</code>: 使い方の追記</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================
+     Phase 3: 心拍数反映
+============================================================ -->
+<section>
+  <h2>Phase 3: 心拍数反映（高難度・要ネイティブ化）</h2>
+
+  <div class="phase-card future">
+    <div class="phase-card-head">
+      <h3 class="phase-card-title">Apple Watch 連携で HR をリアルタイム表示</h3>
+      <span class="phase-badge future">◯ 長期</span>
+    </div>
+
+    <div class="note warning">
+      <strong>⚠ 重要な制約:</strong> 現 MVP の Even Hub プラグイン（WebView ベース）単体では実現困難。
+      <strong>iOS ネイティブアプリ化</strong>が必要で、工数も大きい（2〜4 週間想定）。
+    </div>
+
+    <h3>必要な技術構成</h3>
+    <div class="hud-preview" style="background: #fafaf7; color: var(--c-text); font-family: inherit;">
+      <pre style="margin: 0; font-family: 'SF Mono', Menlo, monospace; font-size: 13px;">
+Apple Watch App (watchOS)
+  ↓ HealthKit / HKWorkoutSession
+iPhone App (iOS native)
+  ↓ WatchConnectivity
+Even Hub Plugin (WebView)  ← Bridge 経由で受信
+  ↓ EvenAppBridge
+G2 ディスプレイ
+      </pre>
+    </div>
+
+    <h3>必要な要素</h3>
+    <ul class="phase-features">
+      <li><strong>watchOS アプリ</strong>: Apple Watch 上で <code>HKWorkoutSession</code> で心拍取得</li>
+      <li><strong>iOS ネイティブアプリ</strong>: <code>WatchConnectivity</code> で Watch から受信</li>
+      <li><strong>WebView ↔ Native ブリッジ</strong>: iOS アプリと Even Hub プラグインの通信路</li>
+      <li><strong>HealthKit 権限</strong>: Info.plist + 認証 UI</li>
+    </ul>
+
+    <h3>代替案</h3>
+    <ul class="phase-features">
+      <li><strong>Phase 3a</strong>: 手動入力（推定 HR を入力 → 経過時間ベースで概算表示・1 セッション）</li>
+      <li><strong>Phase 3b</strong>: BLE 直結（Polar 等の BLE 心拍計を G2 直接接続・SDK 制約調査要）</li>
+    </ul>
+
+    <div class="note">
+      <strong>推奨着手タイミング:</strong> Phase 2（データ保存）完了後、運用 1 ヶ月程度経過し、本当に必要だと判断できてから着手。先にネイティブアプリ化の影響範囲を別 spec で起こす。
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     Phase 4: AI 動的メッセージ
+============================================================ -->
+<section>
+  <h2>Phase 4: AI 動的メッセージ</h2>
+
+  <div class="phase-card future">
+    <div class="phase-card-head">
+      <h3 class="phase-card-title">心拍 / ペース / ラップから状況に応じた声がけ</h3>
+      <span class="phase-badge future">◯ 長期</span>
+    </div>
+
+    <p>ラップ完了時に Claude API を呼んでメッセージ生成。固定 10 種からの卒業。</p>
+
+    <h3>例</h3>
+    <div class="note">
+      <strong>入力:</strong> ラップ 3 完了、ラップタイム 5'42"、平均より 8 秒速い、心拍 165（やや高い）<br>
+      <strong>出力例:</strong> 「ペース上がってきてるね！心拍は無理しない範囲で。次は呼吸整えていこう」
+    </div>
+
+    <h3>設計検討事項</h3>
+    <table class="simple">
+      <thead>
+        <tr><th>項目</th><th>検討内容</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>呼び出し頻度</td><td>ラップ時のみ（バッテリー・通信効率優先）</td></tr>
+        <tr><td>レイテンシ</td><td>&lt; 2 秒目標（ラップ画面 5〜8 秒表示内に収める）</td></tr>
+        <tr><td>プロンプト設計</td><td>キャラ設定 / トーン調整 / NG 表現リスト</td></tr>
+        <tr><td>フォールバック</td><td>API 失敗時は既存 10 種からランダム</td></tr>
+        <tr><td>コスト</td><td>月あたりラン頻度 × ラップ数 × ~$0.001/call（Haiku 4.5 想定）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>実装影響範囲</h3>
+    <ul class="phase-features">
+      <li><code>src/ai/</code>（新規）: AI 呼び出しラッパー + プロンプトテンプレート</li>
+      <li><code>src/run/state.ts</code>: ラップ生成時に AI message を待つロジック</li>
+      <li><code>src/run/messages.ts</code>: フォールバック専用に縮退</li>
+      <li>設定 UI: API キー入力 + キャラ選択 + ON/OFF トグル</li>
+    </ul>
+
+    <div class="note">
+      <strong>推奨着手タイミング:</strong> Phase 3（心拍数）完了後。心拍データが取れることで AI メッセージの精度が大きく上がるため。
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     技術的負債 / 改善候補
+============================================================ -->
+<section>
+  <h2>技術的負債 / 改善候補</h2>
+  <p>MVP 期間中に積み残した小さな改善候補。Phase 2 以降に随時取り込む。</p>
+
+  <table class="simple">
+    <thead>
+      <tr><th>項目</th><th>影響</th><th>優先度</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>PositionSource interface 注入</td><td>テスト容易性 / Apple Watch 着手時のリファクタ削減</td><td>中（Phase 3 前に）</td></tr>
+      <tr><td>GPS フィルタ責務分離</td><td>テスト整備時</td><td>低</td></tr>
+      <tr><td><code>detectLap</code> の pure 化</td><td>テスト整備時</td><td>低</td></tr>
+      <tr><td>ラップ表示時間のパラメータ化</td><td>現在 6 秒ハードコード</td><td>低</td></tr>
+      <tr><td>ESLint / Prettier 設定</td><td>コード品質</td><td>低</td></tr>
+      <tr><td>ユニットテスト整備（vitest）</td><td>リファクタ安全性</td><td>中（Phase 2 着手前推奨）</td></tr>
+      <tr><td>GitHub Actions 自動ビルド + .ehpk 自動添付</td><td>リリース自動化</td><td>中（v0.3 以降）</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================
+     バージョニング方針
+============================================================ -->
+<section>
+  <h2>バージョニング方針</h2>
+  <ul>
+    <li><strong>SemVer</strong>（major.minor.patch）</li>
+    <li>Hub Portal は同一バージョン再アップロードでキャッシュが効くため、<strong>アップロードのたびに patch bump 必須</strong></li>
+    <li>互換性破壊変更（permission 追加 / app.json 大改造）は minor bump</li>
+    <li>大規模機能追加（Phase 2 / 3 / 4）完了時は minor bump</li>
+  </ul>
+
+  <h3>変更時に同期するファイル</h3>
+  <table class="simple">
+    <thead>
+      <tr><th>ファイル</th><th>フィールド</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>app.json</code></td><td><code>version</code></td></tr>
+      <tr><td><code>package.json</code></td><td><code>version</code></td></tr>
+      <tr><td><code>package.json</code></td><td><code>scripts.pack:ehpk</code>（出力ファイル名）</td></tr>
+      <tr><td><code>docs/HANDOFF.md</code></td><td>バージョン情報セクション</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================
+     参考リンク
+============================================================ -->
+<section>
+  <h2>参考リンク</h2>
+  <ul>
+    <li>仕様書: <code>even-g2-run-hud-handoff.md</code></li>
+    <li>旦那様向けハンドオフ: <code>docs/HANDOFF.md</code></li>
+    <li>AI 用ロードマップ: <code>docs/ROADMAP.md</code></li>
+    <li>学習メモ: <code>.claude/rules/learning/core.md</code></li>
+    <li>Even Hub 公式: <a href="https://hub.evenrealities.com/docs/">hub.evenrealities.com/docs/</a></li>
+    <li>Even Hub テンプレ: <a href="https://github.com/even-realities/evenhub-templates">github.com/even-realities/evenhub-templates</a></li>
+  </ul>
+</section>
+
+<footer>
+  G2 Run HUD Roadmap ・ 2026-05-24 作成 ・ <a href="https://github.com/spwebcreat/eveng2-run">github.com/spwebcreat/eveng2-run</a>
+</footer>
+
+</body>
+</html>
