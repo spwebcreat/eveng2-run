@@ -1,13 +1,11 @@
 // G2 Run HUD エントリーポイント
 // - RunStore を作って 1 秒タイマーで tick（経過時間 + 現在時刻の両方を更新）
-// - テストモード ON → mock 位置情報 / OFF → 実 GPS watchPosition
-// - EvenAppBridge 経由で G2 の 12 container（text 8 + image 4）を更新
+// - 実 GPS (navigator.geolocation.watchPosition) で距離計測
+// - EvenAppBridge 経由で G2 の text container 群を更新
 // - コンパニオン UI（index.html）の DOM を state 変化に追従させる
 //
-// v0.2 変更点:
-//   - bridge を 12 container 構成に書き換え。renderForState は RenderMap を返す
-//   - 1 秒 tick で現在時刻も再描画（store 変化に依存せず時計を進める）
-//   - HUD プレビューはコンパニオン UI の <pre> に container map をダンプ表示
+// v0.2.6 でテストモードを完全削除。dev 環境では EvenAppBridge 未検出のスタンドアロン
+// モードで companion UI のメトリクス表示確認のみ可能（GPS は実機 Hub アップロード後）。
 
 import {
   attachG2Hud,
@@ -19,7 +17,6 @@ import { routeEvent } from './even/input'
 import { renderForState } from './even/render'
 import { RunStore, type RunState } from './run/state'
 import { startGeolocation, type GeolocationHandle } from './run/geolocation'
-import { startMockRun, type MockRunHandle } from './mock/dev-mock'
 import { formatDistance, formatPace, formatTime, formatHeartRate } from './run/format'
 
 // ---- DOM 取得（必須要素は型ガード） ----
@@ -29,8 +26,6 @@ function $(id: string): HTMLElement {
   return el
 }
 
-const elTestModeCheckbox = $('test-mode-checkbox') as HTMLInputElement
-const elModeToggleLabel = $('mode-toggle-label')
 const elHudPreview = $('hud-preview')
 const elMetricDistance = $('metric-distance')
 const elMetricAvgPace = $('metric-avg-pace')
@@ -47,18 +42,13 @@ const elStatusGeo = $('status-geo')
 const elErrorNotice = $('error-notice')
 const elActionHint = $('action-hint')
 
-// ---- 初期化（デフォルトはテストモード ON。実 GPS は QR サイドロードで動かない） ----
-const INITIAL_TEST_MODE = true
-elTestModeCheckbox.checked = INITIAL_TEST_MODE
-const store = new RunStore(INITIAL_TEST_MODE)
+// ---- 初期化 ----
+const store = new RunStore()
 
-// ---- 位置情報ハンドル（テスト / 実 GPS のどちらか） ----
-let mockHandle: MockRunHandle | null = null
+// ---- 位置情報ハンドル（実 GPS のみ） ----
 let geoHandle: GeolocationHandle | null = null
 // 同期 onError 経由の再入を防ぐ sentinel（F8 と組み合わせの二重ガード）
 let geoStarting = false
-// mock 同期 callout 経由の再入を防ぐ sentinel（F8 と同型・二重ガード）
-let mockStarting = false
 
 let g2Handle: G2HudHandle | null = null
 let g2Unsubscribe: (() => void) | null = null
@@ -120,7 +110,7 @@ const onVisibilityChange = (): void => {
     renderAll(store.getState())
     const state = store.getState()
     const isActive = state.status === 'running' || state.isAutoPaused
-    if (isActive && !state.isTestMode && geoHandle !== null) {
+    if (isActive && geoHandle !== null) {
       geoHandle.restart()
       elStatusGeo.textContent = 'GPS 再起動（復帰）'
     }
@@ -147,58 +137,27 @@ function syncPositionSourceFor(state: RunState): void {
 
   // 自動 pause 中は位置情報ソースを維持して自動 resume を検知する
   if (keepActive) {
-    if (state.isTestMode) {
-      // 実 GPS が起動していれば止める
-      if (geoHandle !== null) {
-        geoHandle.stop()
-        geoHandle = null
-        elStatusGeo.textContent = '停止（テストモード切替）'
-      }
-      if (mockHandle === null && !mockStarting) {
-        // sentinel を先に立てて再入防止（同期 callout で startMockRun が多重起動する事故防止）
-        mockStarting = true
-        try {
-          mockHandle = startMockRun({
-            onPosition: (pos) => store.onPosition(pos),
-          })
-          elStatusGeo.textContent = 'テストモード（ダミー位置）'
-        } finally {
-          mockStarting = false
-        }
-      }
-    } else {
-      // 実 GPS モード
-      if (mockHandle !== null) {
-        mockHandle.stop()
-        mockHandle = null
-      }
-      if (geoHandle === null && !geoStarting) {
-        // sentinel を先に立てて再入防止（F8 二重ガード）
-        geoStarting = true
-        try {
-          geoHandle = startGeolocation({
-            onPosition: (pos) => {
-              store.onPosition(pos)
-              elStatusGeo.textContent = `GPS 取得中（accuracy ${Math.round(pos.accuracy ?? 0)}m）`
-            },
-            onError: (msg) => {
-              elStatusGeo.textContent = `GPS エラー: ${msg}`
-              store.onGeolocationError(msg)
-            },
-          })
-          elStatusGeo.textContent = 'GPS 取得待ち…'
-        } finally {
-          geoStarting = false
-        }
+    if (geoHandle === null && !geoStarting) {
+      // sentinel を先に立てて再入防止（F8 二重ガード）
+      geoStarting = true
+      try {
+        geoHandle = startGeolocation({
+          onPosition: (pos) => {
+            store.onPosition(pos)
+            elStatusGeo.textContent = `GPS 取得中（accuracy ${Math.round(pos.accuracy ?? 0)}m）`
+          },
+          onError: (msg) => {
+            elStatusGeo.textContent = `GPS エラー: ${msg}`
+            store.onGeolocationError(msg)
+          },
+        })
+        elStatusGeo.textContent = 'GPS 取得待ち…'
+      } finally {
+        geoStarting = false
       }
     }
   } else {
     // running でも自動 pause でもない（idle / 手動 paused）は位置情報を停止
-    if (mockHandle !== null) {
-      mockHandle.stop()
-      mockHandle = null
-      elStatusGeo.textContent = '停止'
-    }
     if (geoHandle !== null) {
       geoHandle.stop()
       geoHandle = null
@@ -250,18 +209,6 @@ function renderToDom(state: RunState, renderMap: RenderMap): void {
   // Reset は running 中以外で有効
   elBtnReset.disabled = state.status === 'running'
   elBtnLapsClear.disabled = state.laps.length === 0 || state.status === 'running'
-
-  // チェックボックス: running 中は disabled（モード変更不可）
-  elTestModeCheckbox.disabled = state.status === 'running'
-  if (state.status === 'running') {
-    elModeToggleLabel.classList.add('is-disabled')
-  } else {
-    elModeToggleLabel.classList.remove('is-disabled')
-  }
-  // 手動でユーザーが checkbox を切り替えた直後に store と DOM がズレないよう同期
-  if (elTestModeCheckbox.checked !== state.isTestMode) {
-    elTestModeCheckbox.checked = state.isTestMode
-  }
 
   // ステータス表示
   elStatusStatus.textContent = state.status
@@ -352,9 +299,6 @@ storeUnsubscribe = store.subscribe((state) => {
 })
 
 // ---- DOM イベント（cleanup で removeEventListener できるよう named handler） ----
-const onTestModeChange = (): void => {
-  store.setTestMode(elTestModeCheckbox.checked)
-}
 const onStartPauseClick = (): void => {
   store.toggleStartPause()
 }
@@ -365,7 +309,6 @@ const onLapsClearClick = (): void => {
   // laps クリアは reset 経由（純粋な laps だけ消す API は提供せず簡素化）
   store.reset()
 }
-elTestModeCheckbox.addEventListener('change', onTestModeChange)
 elBtnStartPause.addEventListener('click', onStartPauseClick)
 elBtnReset.addEventListener('click', onResetClick)
 elBtnLapsClear.addEventListener('click', onLapsClearClick)
@@ -450,7 +393,6 @@ async function cleanup(): Promise<void> {
 
   // DOM event listener 解除
   try {
-    elTestModeCheckbox.removeEventListener('change', onTestModeChange)
     elBtnStartPause.removeEventListener('click', onStartPauseClick)
     elBtnReset.removeEventListener('click', onResetClick)
     elBtnLapsClear.removeEventListener('click', onLapsClearClick)
@@ -479,10 +421,6 @@ async function cleanup(): Promise<void> {
   g2Unsubscribe = null
 
   // 位置情報停止
-  if (mockHandle !== null) {
-    mockHandle.stop()
-    mockHandle = null
-  }
   if (geoHandle !== null) {
     geoHandle.stop()
     geoHandle = null

@@ -468,7 +468,7 @@
     <div class="now-grid">
       <div class="now-current">
         <span class="label">直近完了（2026-05-24）</span>
-        <strong>Phase 1: MVP v0.2.5 リリース</strong>
+        <strong>Phase 1: MVP v0.2.6 リリース</strong>
         <small>3x3 グリッドレイアウト確定 + メッセージ領域に START ◀ / END 長押しで終了 視覚ガイド（中央寄せ）</small>
         <small>実機計測精度: Apple Watch 比較で距離 +1.9% / ペース差 6 秒（許容範囲）</small>
         <small>GitHub 初回 push 済（commit <code>7b41a72</code>）</small>
@@ -491,7 +491,7 @@
 
   <div class="phase-card done">
     <div class="phase-card-head">
-      <h3 class="phase-card-title">v0.2.5 リリース内容</h3>
+      <h3 class="phase-card-title">v0.2.6 リリース内容</h3>
       <span class="phase-badge done">✓ 完了 2026-05-24</span>
     </div>
     <p class="phase-meta">仕様書 §3〜§17 をベースに MVP 完成。</p>
@@ -516,7 +516,7 @@
       <li>1 km 自動ラップ検知 + 励ましランダムメッセージ（日本語 10 種）</li>
       <li>自動 pause / resume（直近 30 秒・5m 未満で pause、5m 以上で resume）</li>
       <li>GPS 復帰対策（<code>visibilitychange</code> + <code>watchPosition</code> 再起動 + Screen Wake Lock）</li>
-      <li>テストモード切替（GPS なしでキロ 6 分相当のダミー進行）</li>
+      <li>常時実 GPS モードで動作（v0.2.6 でテストモード削除・dev 環境は companion UI 確認用）</li>
       <li>スタート / 一時停止 / リセット（G2 タップ + コンパニオン UI 両対応）</li>
     </ul>
 

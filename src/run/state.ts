@@ -44,7 +44,6 @@ export interface RunState {
   laps: ReadonlyArray<Lap>
   heartRateBpm: number | null
   message: string | null
-  isTestMode: boolean
   errorMessage: string | null
   /**
    * true なら現在の paused は自動 pause（ユーザー手動 pause と区別）。
@@ -77,8 +76,8 @@ export class RunStore {
   private listeners = new Set<Listener>()
   private lapTimerId: ReturnType<typeof setTimeout> | null = null
 
-  constructor(isTestMode: boolean) {
-    this.state = createInitialState(isTestMode)
+  constructor() {
+    this.state = createInitialState()
   }
 
   getState(): Readonly<RunState> {
@@ -102,14 +101,6 @@ export class RunStore {
 
   // ---- actions ----
 
-  setTestMode(isTestMode: boolean): void {
-    if (this.state.isTestMode === isTestMode) return
-    // 走行中はモード変更を拒否（事故防止）
-    if (this.state.status === 'running') return
-    this.state = { ...this.state, isTestMode }
-    this.emit()
-  }
-
   toggleStartPause(): void {
     if (this.state.status === 'idle') {
       this.start()
@@ -123,12 +114,11 @@ export class RunStore {
   start(): void {
     if (this.state.status === 'running') return
     const now = Date.now()
-    // テストモードは即 running、GPS モードは最初の有効サンプル受信まで gps-waiting
-    const screenMode: ScreenMode = this.state.isTestMode ? 'running' : 'gps-waiting'
+    // GPS モードのみ：最初の有効サンプル受信まで gps-waiting
     this.state = {
       ...this.state,
       status: 'running',
-      screenMode,
+      screenMode: 'gps-waiting',
       startedAt: this.state.startedAt ?? now,
       lastPausedAt: null,
       errorMessage: null,
@@ -170,13 +160,11 @@ export class RunStore {
 
   private doResume(options: { isAuto: boolean }): void {
     if (this.state.status !== 'paused') return
-    void options
     const now = Date.now()
     const addedPause = this.state.lastPausedAt !== null ? now - this.state.lastPausedAt : 0
-    // GPS モードは resume 時に再び gps-waiting（initial サンプル受信まで）
-    // ただしテストモード / 自動 resume（既に GPS サンプルが来ている）の場合は running 直行
-    const screenMode: ScreenMode =
-      this.state.isTestMode || options.isAuto ? 'running' : 'gps-waiting'
+    // 手動 resume は GPS サンプル待ちのため gps-waiting に、
+    // 自動 resume（GPS サンプル受信トリガー）は直接 running に遷移
+    const screenMode: ScreenMode = options.isAuto ? 'running' : 'gps-waiting'
     this.state = {
       ...this.state,
       status: 'running',
@@ -255,7 +243,7 @@ export class RunStore {
       clearTimeout(this.lapTimerId)
       this.lapTimerId = null
     }
-    this.state = createInitialState(this.state.isTestMode)
+    this.state = createInitialState()
     this.emit()
   }
 
@@ -412,7 +400,7 @@ export class RunStore {
   }
 }
 
-function createInitialState(isTestMode: boolean): RunState {
+function createInitialState(): RunState {
   return {
     status: 'idle',
     screenMode: 'idle',
@@ -429,7 +417,6 @@ function createInitialState(isTestMode: boolean): RunState {
     laps: [],
     heartRateBpm: null,
     message: null,
-    isTestMode,
     errorMessage: null,
     isAutoPaused: false,
     autoPauseAnchor: null,
