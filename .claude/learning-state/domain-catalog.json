@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "last_updated": "2026-05-24",
+  "domains": [
+    {
+      "name": "core",
+      "path": ".claude/rules/learning/core.md",
+      "tier": "P1",
+      "description": "G2 Run HUD 開発で得た技術知見（Even Hub SDK / Even Realities G2 固有）"
+    }
+  ]
+}

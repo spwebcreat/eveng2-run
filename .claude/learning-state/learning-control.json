@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "initialized": true,
+  "last_updated": "2026-05-24",
+
+  "max_total_tokens": 5000,
+
+  "default_detail_level": "middle",
+  "allow_temporary_detail_override": true,
+
+  "detail_profiles": {
+    "low": {
+      "max_supporting_lines": 0,
+      "allow_code": false
+    },
+    "middle": {
+      "max_supporting_lines": 2,
+      "allow_code": false
+    },
+    "high": {
+      "max_supporting_lines": 3,
+      "allow_code": true,
+      "max_code_lines": 8
+    }
+  },
+
+  "compression_policy": {
+    "reduce_detail_before_delete": true,
+    "protect_p1": true,
+    "drop_p3_first": true
+  },
+
+  "domain_policy": {
+    "require_confirmation_for_new_domain": true
+  }
+}

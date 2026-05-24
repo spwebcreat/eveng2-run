@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "initialized": true,
+  "last_updated": "2026-05-24",
+
+  "handoff_dir": ".claude/handoff",
+
+  "archive_policy": {
+    "max_recent_files": 10,
+    "archive_after_days": 30,
+    "max_total_tokens": 10000,
+    "archive_dir": ".claude/handoff/archive"
+  },
+
+  "report_policy": {
+    "enabled": true,
+    "max_session_logs": 5
+  },
+
+  "hq_path": "/Volumes/SP-STORAGE 1TB/company/my-company",
+
+  "post_handoff": {
+    "propose_learning_rules": true
+  }
+}
