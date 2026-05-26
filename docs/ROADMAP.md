@@ -3,8 +3,8 @@
 > AI / 開発者向けの構造化ドキュメント。人間向けは `docs/ROADMAP.html` を参照。
 
 - **対象**: Even Realities G2 / Even Hub Plugin
-- **現在地**: v0.3.0 Phase 2 コード完成（2026-05-26）・実機テスト待ち
-- **次フェーズ**: 実機テスト → R1 リング payload 確認 → デバッグログ整理
+- **現在地**: v0.4.0 Even OS 2.0 公式デザイン準拠化 + ページインジケータ + 履歴日付別（2026-05-26）
+- **次フェーズ**: 実機確認 → R1 リング payload 結果反映 → デバッグログ削除 patch
 - **最終更新**: 2026-05-26
 
 ---
@@ -15,6 +15,7 @@
 |---|---|---|---|
 | Phase 1 | MVP（距離・ペース・時間・自動 pause・GPS 復帰・3x3 レイアウト + メッセージ中央寄せ）| ✅ 完了 | v0.2.6 / 2026-05-24 |
 | Phase 2 | **LAP 拡張 + 履歴永続化 + RUN/WALK モード + R1 リングページ送り** | ✅ コード完成（実機テスト待ち）| v0.3.0 / 2026-05-26 |
+| Phase 2.1 | **Even OS 2.0 公式デザイン準拠化 + G2 ページインジケータ + 履歴日付別** | ✅ コード完成 | v0.4.0 / 2026-05-26 |
 | Phase 3 | 心拍数連携（Apple Watch / HealthKit） | ⏸ 保留 | SDK 制約により凍結 |
 | Phase 4 | AI 動的メッセージ（Claude API） | ⏸ 保留 | Phase 3 依存のため凍結 |
 
@@ -93,6 +94,25 @@
 | G2 → HealthKit | 不可能 |
 
 **Even Realities への feature request は旦那様の意思で見送り**（対応を待ちつつ、現状制約下の機能充実を優先）。
+
+---
+
+## Phase 2.1: Even OS 2.0 公式デザイン準拠化（✅ v0.4.0 / 2026-05-26）
+
+旦那様の指摘「アプリ側のUIデザインがまったくかわってなかった」を受けて、公式デザインガイド (`docs/design/`) を初めて視覚的に確認し、UI を全面リライト。
+
+### 完了サマリ
+
+| カテゴリ | 成果物 |
+|---|---|
+| iPhone UI | ダーク → **ライトテーマに転換**（BC-3rd `#F3F3F3` / TC-1st `#252525`）。公式 Color Palette / Typography / Layout / Group コンポーネントに準拠。Inter / Helvetica Neue フォント代替（FK Grotesk の代替）+ 公式 letter-spacing（負値）+ Type scale 公式準拠 |
+| G2 ページインジケータ | 下段右 textStatus にドット表示 (`●○○` / `○●○` / `○○●`)。Page 2/3 でも textStatus を生かしてインジケータ + status を表示 |
+| G2 mode 視覚化 | READY 表示に mode を含める (`READY ▶ RUN` / `READY ▶ WALK`)、走行中も `WALK ▶` を出すように statusLabel を拡張。**R1 リング READY 中切替の視覚フィードバックが画面で見える** |
+| 過去ログ日付別 | 「今日 / 昨日 / 今週 / それ以前」の 4 グループに分類。空グループは出さない |
+| 互換性 | state / storage / input ロジック無変更。視覚層のみ大改修 |
+
+### 内部ロジック影響
+- ✅ なし（`render.ts` の statusLabel 拡張のみがロジック変更。他は CSS と DOM 構造）
 
 ---
 

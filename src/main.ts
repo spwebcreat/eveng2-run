@@ -333,10 +333,8 @@ function renderMode(state: RunState): void {
 }
 
 /**
- * 過去の走行履歴 (cachedHistory) を DOM に描画。
- * - 0 件 → empty state
- * - クリアボタンは履歴があれば有効
- * - 各エントリは <details> で折りたたみ、LAP 詳細を中に
+ * 過去の走行履歴 (cachedHistory) を日付別グループに分けて DOM に描画。
+ * グループ: 今日 / 昨日 / 今週 / それ以前。空グループは出さない。
  */
 function renderHistory(): void {
   elBtnHistoryClear.disabled = cachedHistory.entries.length === 0
@@ -345,73 +343,138 @@ function renderHistory(): void {
     return
   }
   elHistoryList.innerHTML = ''
-  for (const entry of cachedHistory.entries) {
-    const details = document.createElement('details')
-    details.className = 'history-entry'
+  const groups = groupEntriesByDate(cachedHistory.entries, Date.now())
+  for (const group of groups) {
+    if (group.entries.length === 0) continue
+    const groupEl = document.createElement('div')
+    groupEl.className = 'history-group'
 
-    const summary = document.createElement('summary')
-    summary.className = 'history-summary'
+    const head = document.createElement('div')
+    head.className = 'history-group-head'
+    head.textContent = group.label
+    groupEl.appendChild(head)
 
-    const date = document.createElement('div')
-    date.className = 'history-date'
-    date.textContent = formatHistoryDate(entry.startedAt)
-    summary.appendChild(date)
-
-    const stats = document.createElement('div')
-    stats.className = 'history-stats'
-
-    const badge = document.createElement('span')
-    badge.className = `mode-badge ${entry.mode === 'run' ? 'mode-badge-run' : 'mode-badge-walk'}`
-    badge.textContent = entry.mode === 'run' ? 'RUN' : 'WALK'
-    stats.appendChild(badge)
-
-    const dist = document.createElement('span')
-    dist.className = 'stat-dist'
-    dist.textContent = `${formatDistance(entry.distanceM)} km`
-    stats.appendChild(dist)
-
-    const time = document.createElement('span')
-    time.className = 'stat-time'
-    time.textContent = formatTime(entry.elapsedMs)
-    stats.appendChild(time)
-
-    const pace = document.createElement('span')
-    pace.className = 'stat-pace'
-    pace.textContent = `${formatPace(entry.averagePaceSecPerKm)}/km`
-    stats.appendChild(pace)
-
-    summary.appendChild(stats)
-    details.appendChild(summary)
-
-    if (entry.laps.length > 0) {
-      const detail = document.createElement('div')
-      detail.className = 'history-detail'
-
-      const h4 = document.createElement('h4')
-      h4.textContent = 'LAP 詳細'
-      detail.appendChild(h4)
-
-      const ol = document.createElement('ol')
-      ol.className = 'history-laps'
-      for (const lap of entry.laps) {
-        const li = document.createElement('li')
-        const lapKm = document.createElement('span')
-        lapKm.textContent = `LAP ${lap.km}`
-        const lapTime = document.createElement('span')
-        lapTime.textContent = lap.lapTimeMs > 0 ? formatPace(lap.lapTimeMs / 1000) : "--'--\""
-        const lapMsg = document.createElement('span')
-        lapMsg.textContent = lap.message ?? ''
-        li.appendChild(lapKm)
-        li.appendChild(lapTime)
-        li.appendChild(lapMsg)
-        ol.appendChild(li)
-      }
-      detail.appendChild(ol)
-      details.appendChild(detail)
+    for (const entry of group.entries) {
+      groupEl.appendChild(createHistoryEntryElement(entry))
     }
-
-    elHistoryList.appendChild(details)
+    elHistoryList.appendChild(groupEl)
   }
+}
+
+type HistoryGroupKey = 'today' | 'yesterday' | 'thisWeek' | 'older'
+interface HistoryGroup {
+  key: HistoryGroupKey
+  label: string
+  entries: typeof cachedHistory.entries
+}
+
+/**
+ * 履歴を 4 つのグループに振り分ける（時系列順を保つ）。
+ * - 今日: 同じ年月日
+ * - 昨日: 前日
+ * - 今週: 直近 7 日以内（昨日より前）
+ * - それ以前: 7 日より前
+ */
+function groupEntriesByDate(
+  entries: typeof cachedHistory.entries,
+  nowMs: number,
+): HistoryGroup[] {
+  const today = startOfDay(nowMs)
+  const yesterday = today - 86_400_000 // 24h
+  const weekStart = today - 6 * 86_400_000 // 直近 7 日 (today を含む) の開始
+
+  const today_: HistoryGroup = { key: 'today', label: '今日', entries: [] }
+  const yest: HistoryGroup = { key: 'yesterday', label: '昨日', entries: [] }
+  const week: HistoryGroup = { key: 'thisWeek', label: '今週', entries: [] }
+  const older: HistoryGroup = { key: 'older', label: 'それ以前', entries: [] }
+
+  for (const entry of entries) {
+    const dayStart = startOfDay(entry.startedAt)
+    if (dayStart === today) today_.entries.push(entry)
+    else if (dayStart === yesterday) yest.entries.push(entry)
+    else if (dayStart >= weekStart) week.entries.push(entry)
+    else older.entries.push(entry)
+  }
+  return [today_, yest, week, older]
+}
+
+/** ms タイムスタンプを「その日の 00:00:00」の ms に丸める */
+function startOfDay(ms: number): number {
+  const d = new Date(ms)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+
+/**
+ * 1 件分の history entry を <details> 要素として生成する。
+ * renderHistory から各グループ内で呼ばれる。
+ */
+function createHistoryEntryElement(entry: RunHistory['entries'][number]): HTMLDetailsElement {
+  const details = document.createElement('details')
+  details.className = 'history-entry'
+
+  const summary = document.createElement('summary')
+  summary.className = 'history-summary'
+
+  const date = document.createElement('div')
+  date.className = 'history-date'
+  date.textContent = formatHistoryDate(entry.startedAt)
+  summary.appendChild(date)
+
+  const stats = document.createElement('div')
+  stats.className = 'history-stats'
+
+  const badge = document.createElement('span')
+  badge.className = `mode-badge ${entry.mode === 'run' ? 'mode-badge-run' : 'mode-badge-walk'}`
+  badge.textContent = entry.mode === 'run' ? 'RUN' : 'WALK'
+  stats.appendChild(badge)
+
+  const dist = document.createElement('span')
+  dist.className = 'stat-dist'
+  dist.textContent = `${formatDistance(entry.distanceM)} km`
+  stats.appendChild(dist)
+
+  const time = document.createElement('span')
+  time.className = 'stat-time'
+  time.textContent = formatTime(entry.elapsedMs)
+  stats.appendChild(time)
+
+  const pace = document.createElement('span')
+  pace.className = 'stat-pace'
+  pace.textContent = `${formatPace(entry.averagePaceSecPerKm)}/km`
+  stats.appendChild(pace)
+
+  summary.appendChild(stats)
+  details.appendChild(summary)
+
+  if (entry.laps.length > 0) {
+    const detail = document.createElement('div')
+    detail.className = 'history-detail'
+
+    const h4 = document.createElement('h4')
+    h4.textContent = 'LAP 詳細'
+    detail.appendChild(h4)
+
+    const ol = document.createElement('ol')
+    ol.className = 'history-laps'
+    for (const lap of entry.laps) {
+      const li = document.createElement('li')
+      const lapKm = document.createElement('span')
+      lapKm.textContent = `LAP ${lap.km}`
+      const lapTime = document.createElement('span')
+      lapTime.textContent = lap.lapTimeMs > 0 ? formatPace(lap.lapTimeMs / 1000) : "--'--\""
+      const lapMsg = document.createElement('span')
+      lapMsg.textContent = lap.message ?? ''
+      li.appendChild(lapKm)
+      li.appendChild(lapTime)
+      li.appendChild(lapMsg)
+      ol.appendChild(li)
+    }
+    detail.appendChild(ol)
+    details.appendChild(detail)
+  }
+
+  return details
 }
 
 /**

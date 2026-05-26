@@ -84,14 +84,14 @@ npx evenhub qr --url http://<PC の LAN IP>:5173
 pnpm pack:ehpk
 ```
 
-→ プロジェクトルートに `g2-run-hud-0.3.0.ehpk` が生成される。
+→ プロジェクトルートに `g2-run-hud-0.4.0.ehpk` が生成される。
 （`pnpm pack` だと pnpm の built-in tarball コマンドが走って `.tgz` が出てしまうので注意）
 
 アップロード手順：
 
 1. Even Hub の開発者ポータル（https://hub.evenrealities.com）にログイン
 2. `New plugin` → `.ehpk` をアップロード
-3. プラグイン情報を確認（package_id: `com.spwebcreat.g2runhud` / version: `0.3.0`）
+3. プラグイン情報を確認（package_id: `com.spwebcreat.g2runhud` / version: `0.4.0`）
 4. テスト配信またはサイドロード URL をスマホで開く
 5. Even Realities アプリ内で起動 → G2 に HUD が表示される
 6. 初回起動時に位置情報の許可ダイアログが出るので「許可」を選ぶ
@@ -201,11 +201,23 @@ even-g2-run/
 
 - **Phase 1** ✅ MVP（v0.2.6 / 2026-05-24）
 - **Phase 2** ✅ LAP + 履歴 + RUN/WALK + R1 リング（v0.3.0 / 2026-05-26）
+- **Phase 2.1** ✅ UI を Even OS 2.0 公式ガイド準拠化 + ページインジケータ + 日付別履歴（v0.4.0 / 2026-05-26）
 - **Phase 3** ⏸ 心拍数（Apple Watch / HealthKit）— SDK に bridge が無く保留
 - **Phase 4** ⏸ AI 動的メッセージ — Phase 3 依存で保留
 
 ## バージョン情報
 
+- v0.4.0（2026-05-26）: **Even OS 2.0 公式デザイン準拠化 + G2 ページインジケータ + 履歴日付別**
+  - **iPhone UI 全面リライト**: 公式 `docs/design/` ガイドの Color Palette / Layout / Typography / Group コンポーネントに準拠
+    - ライトテーマ（BC-3rd `#F3F3F3` ベース・TC-1st `#252525` 本文）に転換（旧ダーク `#232323` から完全変更）
+    - 公式 Selector パターンで RUN / WALK モード選択（黒塗りアクティブ）
+    - 公式 Card / Lists パターンで現在 LAP・過去の走行カード
+    - フォント代替: Inter / Helvetica Neue（FK Grotesk 代替）、letter-spacing 公式値 (-0.72px〜-0.11px) を採用
+    - Type scale 公式準拠（Very Large 24 / Large 20 / 17 / 15 / 13 / 11）
+  - **G2 ページインジケータ**: 下段右 textStatus にドット表示（Page 1=`●○○` / 2=`○●○` / 3=`○○●`）。Page 2/3 でも表示維持で現在ページが分かるように
+  - **G2 mode 視覚化**: READY 表示に mode を含める（`READY ▶ RUN` / `READY ▶ WALK`）、走行中も `WALK ▶` を出すように statusLabel を拡張。R1 リング READY 中切替の効果が画面で見える
+  - **過去ログ日付別グループ化**: 「今日 / 昨日 / 今週 / それ以前」の 4 グループにヘッダー付きで分類
+  - 視覚的に大きく変わるが、内部ロジック（state / storage / input）は無変更で互換性維持
 - v0.3.0（2026-05-26）: **Phase 2 完成 — LAP 拡張 + 履歴永続化 + RUN/WALK + R1 リング**
   - **G2 表示の 3 ページ化**: Page 1 = HUD（既存）/ Page 2 = 直近 3 LAP リスト / Page 3 = サマリ（最速/最遅/平均）
   - **R1 リング SCROLL 入力**: 走行中 / 一時停止中はページ送り、READY 中はモード切替（RUN ⇄ WALK）

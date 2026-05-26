@@ -421,7 +421,7 @@
 <header>
   <h1>G2 Run HUD 開発ロードマップ</h1>
   <p class="meta">
-    作成: 2026-05-24（日） ／ 最終更新: 2026-05-26（火）／
+    作成: 2026-05-24（日） ／ 最終更新: 2026-05-26（火）v0.4.0／
     対象: Even Realities G2 / Even Hub Plugin ／
     リポジトリ: <a href="https://github.com/spwebcreat/eveng2-run">github.com/spwebcreat/eveng2-run</a>
   </p>
@@ -446,7 +446,7 @@
     </div>
     <div class="progress-segment done">
       <span class="phase-letter">2</span>
-      <span class="phase-status">✅ コード完成 5/26（実機テスト待ち）</span>
+      <span class="phase-status">✅ v0.4.0 完成 5/26（実機テスト待ち）</span>
     </div>
     <div class="progress-segment future">
       <span class="phase-letter">3</span>
@@ -467,19 +467,19 @@
     <h2>📍 今ここ</h2>
     <div class="now-grid">
       <div class="now-current">
-        <span class="label">直近完了（2026-05-26）</span>
-        <strong>Phase 2: v0.3.0 コード完成</strong>
-        <small>G2 を 3 ページ化（HUD / LAP リスト / サマリ） + R1 リングでページ送り</small>
-        <small>履歴永続化（SDK storage 優先 / browser fallback・100 件上限）+ RUN/WALK モード選択</small>
-        <small>Companion UI 改装（モード選択 / 現在の LAP 強化 / 過去の走行カード）</small>
-        <small>build pass + CODEX テスト観点 9 項目セルフチェック ✅</small>
+        <span class="label">直近完了（2026-05-26 / v0.4.0）</span>
+        <strong>Even OS 2.0 公式デザイン準拠化 + G2 ページインジケータ</strong>
+        <small>iPhone UI 全面リライト（ダーク → ライトテーマ / 公式色 / Inter フォント代替 / Type scale 準拠）</small>
+        <small>G2 にページインジケータ追加（●○○ / ○●○ / ○○●）と mode 視覚化（READY ▶ RUN / WALK ▶）</small>
+        <small>過去ログ日付別グループ化（今日 / 昨日 / 今週 / それ以前）</small>
+        <small>build pass ✅・内部ロジック無変更（state / storage / input 不変）</small>
       </div>
       <div class="now-backlog">
         <span class="label">次の手</span>
-        <strong>実機テスト → デバッグログ整理 → v0.3.0 リリース</strong>
-        <small>R1 リング SCROLL が <code>sysEvent</code> / <code>textEvent</code> どちらに来るかを実機 console.debug で確認</small>
-        <small>履歴永続化の実機動作確認（SDK adapter 経路）</small>
-        <small>確認後、入力デバッグログ削除 → patch bump → Hub アップロード</small>
+        <strong>実機確認 → R1 ログ結果反映 → patch リリース</strong>
+        <small>v0.4.0 を Hub にアップロードして実機 UI を確認</small>
+        <small>R1 リング SCROLL が <code>sysEvent</code> / <code>textEvent</code> どちらに来るか console ログで確認</small>
+        <small>結果に基づき debug log 削除 + 確定実装の patch (v0.4.1) を出す</small>
       </div>
     </div>
   </div>
@@ -517,6 +517,17 @@
       <li>ページ循環の操作感（Page 1 → 2 → 3 → 1）</li>
       <li>RUN / WALK 切替の UX（READY 時のみ可能）</li>
     </ul>
+
+    <div class="note">
+      <strong>Phase 2.1（v0.4.0 / 2026-05-26）:</strong> UI を <strong>Even OS 2.0 公式デザインガイド準拠</strong>に全面リライト + G2 ページインジケータ + 履歴日付別追加。詳細:
+      <ul class="phase-features">
+        <li><strong>iPhone UI</strong>: ダーク → ライトテーマ転換（BC-3rd <code>#F3F3F3</code> / TC-1st <code>#252525</code>）。Color Palette / Layout / Typography / Group コンポーネントに準拠。Inter / Helvetica Neue 代替フォント + Type scale 公式準拠（24 / 20 / 17 / 15 / 13 / 11）+ letter-spacing 負値</li>
+        <li><strong>G2 ページインジケータ</strong>: 下段右 textStatus にドット表示（<code>●○○</code> / <code>○●○</code> / <code>○○●</code>）。Page 2/3 でも textStatus 維持で現在ページが分かる</li>
+        <li><strong>G2 mode 視覚化</strong>: <code>READY ▶ RUN</code> / <code>READY ▶ WALK</code> / 走行中 <code>WALK ▶</code> 出し分け。R1 リングモード切替が画面で見える</li>
+        <li><strong>過去ログ日付別</strong>: 「今日 / 昨日 / 今週 / それ以前」グループ化</li>
+        <li><strong>互換性</strong>: state / storage / input ロジック無変更。視覚層のみ大改修</li>
+      </ul>
+    </div>
 
     <div class="note">
       <strong>既存実装の確認（CODEX 補正で発覚・2026-05-26）:</strong> Phase 2a は「LAP 新規実装」ではなく、<strong>既存 LAP 機能の拡張</strong>であることが判明。
