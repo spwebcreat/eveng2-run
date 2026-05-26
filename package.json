@@ -1,13 +1,13 @@
 {
   "name": "g2-run-hud",
   "private": true,
-  "version": "0.2.6",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "pack:ehpk": "pnpm build && evenhub pack app.json dist -o g2-run-hud-0.2.6.ehpk",
+    "pack:ehpk": "pnpm build && evenhub pack app.json dist -o g2-run-hud-0.3.0.ehpk",
     "simulate": "evenhub-simulator http://localhost:5173"
   },
   "dependencies": {

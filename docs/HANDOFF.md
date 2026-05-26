@@ -84,14 +84,14 @@ npx evenhub qr --url http://<PC の LAN IP>:5173
 pnpm pack:ehpk
 ```
 
-→ プロジェクトルートに `g2-run-hud-0.2.6.ehpk` が生成される。
+→ プロジェクトルートに `g2-run-hud-0.3.0.ehpk` が生成される。
 （`pnpm pack` だと pnpm の built-in tarball コマンドが走って `.tgz` が出てしまうので注意）
 
 アップロード手順：
 
 1. Even Hub の開発者ポータル（https://hub.evenrealities.com）にログイン
 2. `New plugin` → `.ehpk` をアップロード
-3. プラグイン情報を確認（package_id: `com.spwebcreat.g2runhud` / version: `0.2.6`）
+3. プラグイン情報を確認（package_id: `com.spwebcreat.g2runhud` / version: `0.3.0`）
 4. テスト配信またはサイドロード URL をスマホで開く
 5. Even Realities アプリ内で起動 → G2 に HUD が表示される
 6. 初回起動時に位置情報の許可ダイアログが出るので「許可」を選ぶ
@@ -132,7 +132,7 @@ pnpm dev
 ### ラップ画面が出ない
 
 - 1km 到達まではラップが出ない
-- 「履歴クリア」→「リセット」を経由してから再試行
+- 「リセット」を経由してから再試行（v0.3.0 で「履歴クリア」ボタンは削除されています）
 
 ### シミュレーターが起動失敗する
 
@@ -141,13 +141,17 @@ pnpm dev
 
 ---
 
-## 既知の制約（MVP の範囲外）
+## 既知の制約（v0.3.0 時点）
 
-- **スマホ画面ロック中の動作未確認**: バックグラウンド常時計測は未対応
-- **心拍数**: 常時 `HR -- bpm` 表示（Apple Watch + HealthKit + WatchConnectivity 連携は Phase 2 で検討）
-- **マップ / ナビ表示**: 未実装（Phase 3 で検討）
-- **データ保存**: ランの履歴は閉じると消える（LocalStorage 永続化未実装）
-- **R1 Ring 入力**: 未対応（テンプル touchpad の Tap / Double Tap のみ）
+- **スマホ画面ロック中・Even Hub バックグラウンド中の GPS は止まる**: SDK が Background Location を提供しないため。前面維持時の復帰耐性は Wake Lock + visibilitychange で改善済だが、ポケット運用は不可（手持ち推奨）
+- **心拍数**: 常時 `HR -- bpm` 表示（SDK に HealthKit / WatchConnectivity bridge が無く実装不能）
+- **マップ / ナビ表示**: 未実装
+- **AI 動的メッセージ**: 未実装（心拍データ無しでの設計再検討待ち）
+
+### v0.3.0 で対応済（旧 MVP 制約からの解消）
+
+- **データ保存**: ラン履歴を SDK storage / browser localStorage に永続化（100 件上限、古いものから drop）
+- **R1 Ring 入力**: SCROLL_TOP / SCROLL_BOTTOM 対応。実機での payload shape 確認は debug log で行う（後述）
 
 ---
 
@@ -157,46 +161,60 @@ pnpm dev
 even-g2-run/
 ├── package.json
 ├── app.json                     ← Even Hub manifest
-├── index.html                   ← コンパニオン UI
+├── index.html                   ← コンパニオン UI（モード選択 + 現在 LAP + 過去の走行）
 ├── vite.config.ts
 ├── tsconfig.json
 ├── src/
-│   ├── main.ts                  ← エントリ
+│   ├── main.ts                  ← エントリ（DOM / 履歴連携 / bootstrap）
 │   ├── even/
-│   │   ├── bridge.ts            ← EvenAppBridge ラッパー
-│   │   ├── render.ts            ← HUD テキスト組み立て
-│   │   └── input.ts             ← G2 入力ルーティング
+│   │   ├── bridge.ts            ← EvenAppBridge ラッパー（8 text container 構成）
+│   │   ├── render.ts            ← HUD テキスト組み立て（Page 1/2/3 切替対応）
+│   │   └── input.ts             ← G2 入力ルーティング（Tap / Double Tap / R1 SCROLL）
 │   ├── run/
-│   │   ├── state.ts             ← RunStore（状態管理の中心）
+│   │   ├── state.ts             ← RunStore（status / mode / currentPage / onHistorySave）
 │   │   ├── geolocation.ts       ← 実 GPS watchPosition
 │   │   ├── pace.ts              ← 平均 / 現在ペース + Haversine
 │   │   ├── lap.ts               ← ラップ検知
+│   │   ├── summary.ts           ← LAP サマリ算出（最速 / 最遅 / 平均）
 │   │   ├── messages.ts          ← ランダムメッセージ 10 候補
 │   │   └── format.ts            ← 表示用フォーマッタ
+│   ├── storage/
+│   │   ├── types.ts             ← RunHistory / RunHistoryEntry スキーマ
+│   │   ├── ports.ts             ← StoragePort interface
+│   │   ├── sdk-adapter.ts       ← Even Hub SDK localStorage adapter
+│   │   ├── browser-adapter.ts   ← window.localStorage fallback adapter
+│   │   └── run-history.ts       ← load / append / clear（100 件上限）
 │   └── styles/
 │       └── app.css              ← コンパニオン UI 用 dark theme
 └── docs/
-    └── HANDOFF.md               ← このファイル
+    ├── HANDOFF.md               ← このファイル（旦那様向け）
+    ├── ROADMAP.md               ← AI 用ロードマップ
+    ├── ROADMAP.html             ← 旦那様向けロードマップ（ブラウザ）
+    └── CLAUDE_IMPLEMENTATION_BRIEF.md ← CODEX 補正資料
 ```
 
 ---
 
-## ロードマップ（MVP 後）
+## ロードマップ
 
-旦那様の優先順位：
+詳細は `docs/ROADMAP.md` / `docs/ROADMAP.html` 参照。サマリのみ:
 
-1. **データ保存** — ラン履歴の永続化（距離・時間・ペース・ラップ・日付）
-   - 候補: LocalStorage / IndexedDB（ブラウザ内）/ 外部 API
-   - 設計検討事項: 履歴 UI（コンパニオン UI に追加 or G2 でも見られるように）/ エクスポート機能（CSV / GPX / Strava 連携）
-2. **心拍数の反映** — Apple Watch 連携で HR をリアルタイム表示
-   - 必要技術: watchOS アプリ + HealthKit + HKWorkoutSession + WatchConnectivity + iOS ネイティブアプリ
-   - 現 MVP の WebView 制約上、Even Hub プラグイン単体では実現困難 → Phase 2 でネイティブ化が必要
-3. **AI 動的メッセージ** — 心拍 / ペース / ラップから AI が状況に応じた声がけを生成
-   - 必要技術: Claude API / OpenAI API 等 + リアルタイム呼び出し最適化
-   - 設計検討事項: バッテリー消費 / 通信頻度 / メッセージ生成タイミング（ラップ時のみ or 一定間隔）
+- **Phase 1** ✅ MVP（v0.2.6 / 2026-05-24）
+- **Phase 2** ✅ LAP + 履歴 + RUN/WALK + R1 リング（v0.3.0 / 2026-05-26）
+- **Phase 3** ⏸ 心拍数（Apple Watch / HealthKit）— SDK に bridge が無く保留
+- **Phase 4** ⏸ AI 動的メッセージ — Phase 3 依存で保留
 
 ## バージョン情報
 
+- v0.3.0（2026-05-26）: **Phase 2 完成 — LAP 拡張 + 履歴永続化 + RUN/WALK + R1 リング**
+  - **G2 表示の 3 ページ化**: Page 1 = HUD（既存）/ Page 2 = 直近 3 LAP リスト / Page 3 = サマリ（最速/最遅/平均）
+  - **R1 リング SCROLL 入力**: 走行中 / 一時停止中はページ送り、READY 中はモード切替（RUN ⇄ WALK）
+  - **RUN / WALK モード選択**: コンパニオン UI セグメンテッドコントロール。走行中は disabled。履歴に記録
+  - **走行履歴の永続化**: `reset()` 時に距離 > 0 なら自動保存（SDK localStorage 優先 / browser localStorage fallback）
+  - **過去の走行カード**: 日時・モード・距離・経過時間・平均ペース表示。タップで LAP 詳細展開
+  - **履歴クリア**: 2 段階確認（「クリア」→ 3 秒以内「もう一度タップで確定」）
+  - 旧「履歴クリア」ボタンは削除（reset と意味が同じため簡素化）
+  - **入力デバッグログ**: R1 リング由来 payload 確認用に `console.debug` 出力（実機 sysEvent / textEvent 判別後に削除予定）
 - v0.2.6（2026-05-24）: テストモード完全削除
   - `src/mock/dev-mock.ts` と関連 UI / state（`isTestMode` / `setTestMode`）を削除
   - 常に実 GPS モードで動作（QR サイドロード時は GPS 取得不可・Hub アップロード経路必須）

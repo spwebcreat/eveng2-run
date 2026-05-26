@@ -421,7 +421,7 @@
 <header>
   <h1>G2 Run HUD 開発ロードマップ</h1>
   <p class="meta">
-    作成: 2026-05-24（日） ／ 最終更新: 2026-05-24（日）／
+    作成: 2026-05-24（日） ／ 最終更新: 2026-05-26（火）／
     対象: Even Realities G2 / Even Hub Plugin ／
     リポジトリ: <a href="https://github.com/spwebcreat/eveng2-run">github.com/spwebcreat/eveng2-run</a>
   </p>
@@ -430,7 +430,7 @@
     <span class="legend-item done">✓ 完了</span>
     <span class="legend-item now">● 進行中</span>
     <span class="legend-item next">▸ 次</span>
-    <span class="legend-item future">◯ 長期</span>
+    <span class="legend-item future">⏸ 保留</span>
   </div>
 </header>
 
@@ -444,17 +444,17 @@
       <span class="phase-letter">1</span>
       <span class="phase-status">MVP 完了 5/24</span>
     </div>
-    <div class="progress-segment next">
+    <div class="progress-segment done">
       <span class="phase-letter">2</span>
-      <span class="phase-status">データ保存</span>
+      <span class="phase-status">✅ コード完成 5/26（実機テスト待ち）</span>
     </div>
     <div class="progress-segment future">
       <span class="phase-letter">3</span>
-      <span class="phase-status">心拍数 (要ネイティブ化)</span>
+      <span class="phase-status">⏸ 心拍数 (SDK 制約で保留)</span>
     </div>
     <div class="progress-segment future">
       <span class="phase-letter">4</span>
-      <span class="phase-status">AI 動的メッセージ</span>
+      <span class="phase-status">⏸ AI メッセージ (Phase 3 依存)</span>
     </div>
   </div>
 </section>
@@ -467,21 +467,212 @@
     <h2>📍 今ここ</h2>
     <div class="now-grid">
       <div class="now-current">
-        <span class="label">直近完了（2026-05-24）</span>
-        <strong>Phase 1: MVP v0.2.6 リリース</strong>
-        <small>3x3 グリッドレイアウト確定 + メッセージ領域に START ◀ / END 長押しで終了 視覚ガイド（中央寄せ）</small>
-        <small>実機計測精度: Apple Watch 比較で距離 +1.9% / ペース差 6 秒（許容範囲）</small>
-        <small>GitHub 初回 push 済（commit <code>7b41a72</code>）</small>
+        <span class="label">直近完了（2026-05-26）</span>
+        <strong>Phase 2: v0.3.0 コード完成</strong>
+        <small>G2 を 3 ページ化（HUD / LAP リスト / サマリ） + R1 リングでページ送り</small>
+        <small>履歴永続化（SDK storage 優先 / browser fallback・100 件上限）+ RUN/WALK モード選択</small>
+        <small>Companion UI 改装（モード選択 / 現在の LAP 強化 / 過去の走行カード）</small>
+        <small>build pass + CODEX テスト観点 9 項目セルフチェック ✅</small>
       </div>
       <div class="now-backlog">
-        <span class="label">次の候補</span>
-        <strong>Phase 2: データ保存（ラン履歴永続化）</strong>
-        <small>LocalStorage で履歴保存 → コンパニオン UI に履歴タブ追加</small>
-        <small>その後 Phase 3（心拍数・要ネイティブ化）→ Phase 4（AI メッセージ）</small>
+        <span class="label">次の手</span>
+        <strong>実機テスト → デバッグログ整理 → v0.3.0 リリース</strong>
+        <small>R1 リング SCROLL が <code>sysEvent</code> / <code>textEvent</code> どちらに来るかを実機 console.debug で確認</small>
+        <small>履歴永続化の実機動作確認（SDK adapter 経路）</small>
+        <small>確認後、入力デバッグログ削除 → patch bump → Hub アップロード</small>
       </div>
     </div>
   </div>
 </section>
+
+<!-- ============================================================
+     Phase 2: LAP + 履歴 + RUN/WALK + R1 リング
+============================================================ -->
+<section>
+  <h2>Phase 2: LAP + 履歴 + RUN/WALK + R1 リング（✅ コード完成・実機テスト待ち）</h2>
+
+  <div class="phase-card done">
+    <div class="phase-card-head">
+      <h3 class="phase-card-title">v0.3.0 コード完成（2026-05-26）</h3>
+      <span class="phase-badge done">✅ コード完成 / 🧪 実機テスト待ち</span>
+    </div>
+    <p class="phase-meta">心拍・Watch・Background GPS は SDK 不可と確定。残された伸びしろにフォーカスして運用満足度を上げた。</p>
+
+    <table class="simple">
+      <thead><tr><th>カテゴリ</th><th>成果物</th></tr></thead>
+      <tbody>
+        <tr><td>型・スキーマ</td><td><code>RunState</code> に <code>mode</code> / <code>currentPage</code> 追加、<code>RunHistoryEntry</code> / <code>RunHistory</code> 定義、<code>StoragePort</code> interface</td></tr>
+        <tr><td>G2 表示</td><td>Page 1 (HUD) / Page 2 (LAP リスト 3 件) / Page 3 (最速・最遅・平均サマリ) の 3 ページ構成。<code>screenMode === 'lap'</code> 時は currentPage 無視で既存ラップ通知優先</td></tr>
+        <tr><td>入力</td><td>R1 リング SCROLL = ページ送り（running/paused）/ モード切替（READY）。Tap / Double Tap は既存維持。<code>console.debug</code> で payload ダンプ（実機確認用）</td></tr>
+        <tr><td>履歴永続化</td><td><code>reset()</code> 時に距離&gt;0 で自動保存。SDK storage 優先 / browser localStorage fallback。100 件上限で末尾 drop。JSON 破損は空 fallback + warn</td></tr>
+        <tr><td>Companion UI</td><td>モード選択（READY のみ有効）/ 現在の LAP（強化版）/ 過去の走行（折りたたみ）/ 履歴クリア 2 段階確認</td></tr>
+        <tr><td>旧「履歴クリア」ボタン</td><td>削除（reset と意味が同じだったため）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>実機テスト残項目</h3>
+    <ul class="phase-features">
+      <li>走行履歴の永続化動作確認（SDK adapter / browser fallback 両経路）</li>
+      <li>R1 リング SCROLL が <code>sysEvent</code> / <code>textEvent</code> どちらに来るか（<code>console.debug</code> で確認 → 確定後デバッグログ削除）</li>
+      <li>ページ循環の操作感（Page 1 → 2 → 3 → 1）</li>
+      <li>RUN / WALK 切替の UX（READY 時のみ可能）</li>
+    </ul>
+
+    <div class="note">
+      <strong>既存実装の確認（CODEX 補正で発覚・2026-05-26）:</strong> Phase 2a は「LAP 新規実装」ではなく、<strong>既存 LAP 機能の拡張</strong>であることが判明。
+      <table class="simple" style="margin-top: 8px;">
+        <thead><tr><th>既存実装</th><th>場所</th></tr></thead>
+        <tbody>
+          <tr><td><code>detectLap()</code> 1km 検知ロジック</td><td><code>src/run/lap.ts</code></td></tr>
+          <tr><td><code>laps</code> / <code>currentLapKm</code> / <code>fireLap()</code></td><td><code>src/run/state.ts:43-44, 364</code></td></tr>
+          <tr><td>Companion UI の LAP 表示 + クリアボタン</td><td><code>src/main.ts:37, 211, 249</code>（<code>renderLapsDom</code>）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>2a. LAP 表示・サマリ・履歴スキーマ拡張（既存 LAP の活用）</h3>
+    <ul class="phase-features">
+      <li>既存 <code>detectLap()</code> の出力を G2 ページ表示に拡張</li>
+      <li>LAP サマリ算出ロジック新規（最速 LAP / 最遅 LAP / 平均ペース）</li>
+      <li>履歴保存用のスキーマを LAP 配列込みで固める</li>
+      <li>G2 表示にページ追加（既存 1 ページ → 3 ページ構成）:
+        <ul>
+          <li><strong>Page 1</strong>: 現在値（距離・ペース・経過時間） ← 既存</li>
+          <li><strong>Page 2</strong>: LAP リスト（<code>list_container</code> 使用） ← 新規</li>
+          <li><strong>Page 3</strong>: サマリ（最速 LAP / 最遅 LAP / 平均ペース） ← 新規</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>2b. データ永続化（SDK storage 優先 / browser fallback）</h3>
+    <ul class="phase-features">
+      <li><strong>保存先の方針</strong>:
+        <ul>
+          <li>Hub 接続時: SDK の <code>bridge.setLocalStorage</code> / <code>bridge.getLocalStorage</code> を優先</li>
+          <li>Hub 未接続 / dev 環境: browser <code>localStorage</code> に fallback</li>
+        </ul>
+      </li>
+      <li><strong>設計パターン</strong>: storage port 注入（<code>StoragePort</code> interface + Hub adapter / Browser adapter）</li>
+      <li>配置: <code>src/storage/runHistory.ts</code> （新規）</li>
+      <li>保存項目: 日時 / モード / 距離 / 経過時間 / 平均ペース / LAP 配列</li>
+      <li>件数上限: 100 件（古いものから drop）</li>
+      <li>JSON parse 失敗時: 空配列に戻し、console warning を出す（破損データ握りつぶし禁止）</li>
+      <li>iPhone プラグイン画面に「<strong>過去の走行</strong>」セクション追加 / 履歴項目タップで詳細表示</li>
+    </ul>
+
+    <h3>2c. RUN/WALK モード選択</h3>
+    <ul class="phase-features">
+      <li>停止中（READY 状態）のみモード切替可能（走行中の切替は不可）</li>
+      <li>切替方法: R1 リングのスクロール（候補・実機確認待ち / 2d 参照）</li>
+      <li>差異は <strong>ラベルと履歴の分類のみ</strong>（最小実装）
+        <ul>
+          <li>HUD 表示: <code>RUN ▶</code> / <code>WALK ▶</code></li>
+          <li>履歴に <code>mode: "run" | "walk"</code> で保存</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>2d. R1 リング入力対応（実機確認フェーズあり）</h3>
+    <div class="note warning">
+      <strong>型定義の事実</strong>: <code>Sys_ItemEvent</code> には ✅ <code>eventSource?: EventSourceType</code> あり / <code>Text_ItemEvent</code> には ❌ <code>eventSource</code> <strong>無し</strong>（containerID / containerName / eventType のみ）。
+      実機で R1 リングのスクロールが <code>sysEvent</code> / <code>textEvent</code> どちらに来るか未確認のため、判別ロジックは実機ログ確認後に決定する。
+    </div>
+    <ul class="phase-features">
+      <li><strong>実装手順</strong>:
+        <ol>
+          <li><strong>デバッグログ導線を最初に入れる</strong>: <code>console.debug('[g2-run-hud] event', JSON.stringify(event))</code></li>
+          <li>実機で R1 リングを回して payload shape を確認</li>
+          <li>確認結果に基づいて scroll 振り分けロジック実装</li>
+          <li>本番では noisy にならないよう dev flag 化 or 削除</li>
+        </ol>
+      </li>
+      <li>既存 <code>src/even/input.ts:70</code> の「将来拡張用」コメントを実装に置換</li>
+    </ul>
+
+    <h3>操作系の再設計</h3>
+    <table class="simple">
+      <thead>
+        <tr><th>状態</th><th>グラスタッチパッド</th><th>R1 リング</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>停止中（READY）</td><td>Tap = 開始 / Double = リセット</td><td>スクロール = モード切替（RUN ⇄ WALK）</td></tr>
+        <tr><td>走行中（RUN/WALK）</td><td>Tap = 一時停止 / Double = リセット</td><td>スクロール = ページ送り</td></tr>
+        <tr><td>一時停止中（PAUSED）</td><td>Tap = 再開 / Double = リセット</td><td>スクロール = ページ送り</td></tr>
+      </tbody>
+    </table>
+    <p class="phase-meta">長押し = OS 終了（変更不可・G2 ハード固定）</p>
+
+    <h3>実装影響範囲</h3>
+    <table class="simple">
+      <thead>
+        <tr><th>ファイル</th><th>変更内容</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>src/run/state.ts</code></td><td>LAP 配列管理 / RUN/WALK モード保持 / 走行終了時に履歴保存</td></tr>
+        <tr><td><code>src/storage/</code>（新規）</td><td>履歴 CRUD レイヤ（localStorage ラッパー）</td></tr>
+        <tr><td><code>src/even/bridge.ts</code></td><td>Page 2 (list_container) / Page 3 (summary) 追加</td></tr>
+        <tr><td><code>src/even/input.ts</code></td><td>SCROLL_TOP / SCROLL_BOTTOM 実装、R1 リング由来判別</td></tr>
+        <tr><td><code>index.html</code> + <code>src/main.ts</code></td><td>LAP 詳細・履歴・モード選択 UI（<strong>ui-ux-pro-max スキルで設計</strong>）</td></tr>
+        <tr><td><code>docs/HANDOFF.md</code></td><td>操作変更点 + 新機能の使い方</td></tr>
+      </tbody>
+    </table>
+
+    <h3>iPhone プラグイン UI（ui-ux-pro-max で設計）</h3>
+    <div class="note">
+      参照素材:
+      <ul>
+        <li><code>docs/EvenRealities.pen</code>（Penpot 形式デザインソース）</li>
+        <li><a href="https://hub.evenrealities.com/docs/guides/design-guidelines">公式 design-guidelines</a>（グラス側のみだが Brand トーン把握用）</li>
+        <li>既存 <code>index.html</code> のスタイル（黒背景 + 緑アクセント）</li>
+      </ul>
+      新規追加セクション: 「LAP 詳細」（現在走行） / 「モード選択」（RUN / WALK） / 「過去の走行履歴」（一覧 + 詳細）
+    </div>
+
+    <h3>想定工数</h3>
+    <ul class="phase-features">
+      <li>2a (LAP + ページ追加): 1 セッション</li>
+      <li>2b (履歴永続化): 1 セッション</li>
+      <li>2c (RUN/WALK): 0.5 セッション</li>
+      <li>2d (R1 リング): 0.5 セッション（実機確認込み）</li>
+      <li>UI 設計（ui-ux-pro-max）: 0.5 セッション</li>
+      <li>実機テスト + 微調整: 0.5〜1 セッション</li>
+      <li><strong>合計: 4〜5 セッション</strong></li>
+    </ul>
+
+    <h3>実装着手前に確認すること</h3>
+    <ul class="phase-features">
+      <li><code>pnpm build</code> が現状で通るか</li>
+      <li><code>@evenrealities/even_hub_sdk</code> の export / <code>.d.ts</code> に追加 API がないか</li>
+      <li>R1 リングイベントの payload shape（sysEvent / textEvent どちらに来るか）</li>
+      <li>G2 container 制約: <code>containerTotalNum</code> 1-12、<code>textObject</code> max 8、<code>listObject</code> 利用時の total 数</li>
+    </ul>
+
+    <h3>実装順（CODEX 推奨を採用）</h3>
+    <ol>
+      <li><code>RunState</code> の <strong>mode / page state / summary selector</strong> を追加</li>
+      <li><code>src/storage/runHistory.ts</code> を追加し、<strong>保存スキーマを固める</strong>（SDK adapter / Browser adapter 注入パターン）</li>
+      <li><strong>保存トリガー設計を明確にする</strong>: reset / run 終了相当のタイミングで履歴保存。running 中 reset は現在ガードされているので、どこで保存するか明示</li>
+      <li><strong>G2 Page 1 / Page 2 / Page 3</strong> の render を分ける（<code>src/even/bridge.ts</code>）</li>
+      <li><strong>R1 / scroll 入力</strong> を page cycling と READY 中 mode toggle に割り当てる（実機ログで sysEvent / textEvent 確認後）</li>
+      <li><strong>Companion UI</strong> に履歴・LAP 詳細・モード選択を追加（<code>ui-ux-pro-max</code> で設計）</li>
+      <li><strong><code>docs/HANDOFF.md</code> と ROADMAP</strong> の記述を同期する</li>
+    </ol>
+
+    <h3>テスト観点（CODEX 推奨）</h3>
+    <ul class="phase-features">
+      <li><code>idle</code> → <code>start</code> → <code>gps-waiting</code> → <code>running</code> 遷移</li>
+      <li><code>running</code> → <code>pause</code> → <code>resume</code> 遷移</li>
+      <li><code>running</code> 中 reset が効かないこと（既存ガード継続）</li>
+      <li><code>paused</code> / <code>idle</code> で reset できること</li>
+      <li>1km / 2km 到達時に LAP が重複記録されないこと</li>
+      <li>履歴保存が 100 件上限で古いものを落とすこと</li>
+      <li>JSON 破損時に UI が壊れないこと</li>
+      <li>SDK storage 不在時に browser localStorage fallback が効くこと</li>
+      <li>R1 scroll と glasses tap が役割衝突しないこと</li>
+    </ul>
+  </div>
+</section>
+
 
 <!-- ============================================================
      Phase 1: MVP
@@ -520,7 +711,7 @@
       <li>スタート / 一時停止 / リセット（G2 タップ + コンパニオン UI 両対応）</li>
     </ul>
 
-    <h3>実機計測精度（Apple Watch 比較・2026-05-24）</h3>
+    <h3>実機計測精度（Apple Watch 比較・2026-05-24 初期テスト）</h3>
     <table class="accuracy-table">
       <thead>
         <tr><th>項目</th><th>Apple Watch</th><th>G2 Run HUD</th><th>誤差</th></tr>
@@ -536,72 +727,147 @@
 </section>
 
 <!-- ============================================================
-     Phase 2: データ保存
+     実走テスト結果 (2026-05-26)
 ============================================================ -->
 <section>
-  <h2>Phase 2: データ保存（次フェーズ・最優先）</h2>
+  <h2>初回実走テスト（2026-05-26）</h2>
 
-  <div class="phase-card next">
+  <div class="phase-card done">
     <div class="phase-card-head">
-      <h3 class="phase-card-title">ラン履歴の永続化</h3>
-      <span class="phase-badge next">▸ 次フェーズ</span>
+      <h3 class="phase-card-title">屋外ランニング 3.5 km テスト</h3>
+      <span class="phase-badge done">✓ 実施 2026-05-26</span>
     </div>
-    <p class="phase-meta">過去のランを振り返れるようにする。</p>
 
-    <h3>保存項目</h3>
-    <ul class="phase-features">
-      <li>日時 / 距離 / 経過時間 / 平均ペース / ラップ配列</li>
-      <li>心拍データ（Phase 3 連携時に追加）</li>
-      <li>使用モード（テスト / 実 GPS）</li>
-    </ul>
-
-    <h3>技術選定候補</h3>
-    <table class="simple">
+    <h3>計測精度（Apple Watch 比較）</h3>
+    <table class="accuracy-table">
       <thead>
-        <tr><th>方式</th><th>容量</th><th>永続性</th><th>難易度</th><th>備考</th></tr>
+        <tr><th>項目</th><th>Apple Watch</th><th>G2 Run HUD</th><th>誤差</th></tr>
       </thead>
       <tbody>
-        <tr><td><strong>LocalStorage</strong></td><td>~5MB</td><td>ブラウザ単位</td><td>低</td><td>MVP 拡張に最適・シンプル（推奨スタート）</td></tr>
-        <tr><td>IndexedDB</td><td>~50MB+</td><td>ブラウザ単位</td><td>中</td><td>件数増加に強い・検索高速</td></tr>
-        <tr><td>外部 API</td><td>無制限</td><td>サーバー</td><td>高</td><td>アカウント認証必要</td></tr>
+        <tr><td>距離</td><td>3.38 km</td><td>3.50 km</td><td>+3.5 %</td></tr>
+        <tr><td>平均ペース</td><td>7'37"/km</td><td>7'19"/km</td><td>-18 秒/km</td></tr>
+        <tr><td>経過時間</td><td>25:45</td><td>25:34</td><td>ほぼ一致</td></tr>
       </tbody>
     </table>
+    <p class="phase-meta">MVP 精度として実用ライン到達。常時 HUD 表示は良い体験との確認。</p>
 
-    <h3>段階的アプローチ</h3>
-    <ul class="phase-features">
-      <li><strong>Phase 2a</strong>: LocalStorage で実装（〜100 件想定・1〜2 セッション）</li>
-      <li><strong>Phase 2b</strong>: IndexedDB 移行（履歴が増えたら・1 セッション）</li>
-      <li><strong>Phase 2c</strong>: Strava / Google Sheets / Notion 連携（要望ベース・各 1〜3 セッション）</li>
-    </ul>
+    <h3>発覚した課題</h3>
+    <div class="note warning">
+      <strong>⚠ GPS 切断問題（致命的）:</strong> スマホをポケットに入れて走ると、振動で画面が切り替わり Even Hub アプリがバックグラウンドに回って GPS が止まる。<strong>手にずっと持って走らないと使えない</strong>状態。
+    </div>
 
-    <h3>実装影響範囲</h3>
+    <h3>ユーザー要望</h3>
     <ul class="phase-features">
-      <li><code>src/run/state.ts</code>: ラン終了時の履歴保存ロジック追加</li>
-      <li><code>src/storage/</code>（新規）: 履歴 CRUD レイヤ</li>
-      <li><code>index.html</code> + <code>src/main.ts</code>: 履歴タブ UI 追加</li>
-      <li><code>docs/HANDOFF.md</code>: 使い方の追記</li>
+      <li>GPS をポケット運用でも切らない方法</li>
+      <li>Apple Watch の数値を G2 に反映する方法</li>
+      <li>G2 計測データを Apple ヘルスケアに連動する方法</li>
     </ul>
+    <p class="phase-meta">→ 後述「SDK 制約の確定」セクション参照。3 件すべて Even Hub プラグイン枠では実現不能と確定。</p>
   </div>
 </section>
 
 <!-- ============================================================
-     Phase 3: 心拍数反映
+     SDK 制約の確定 (2026-05-26 調査結果)
 ============================================================ -->
 <section>
-  <h2>Phase 3: 心拍数反映（高難度・要ネイティブ化）</h2>
+  <h2>SDK 制約の確定（2026-05-26 調査）</h2>
 
   <div class="phase-card future">
     <div class="phase-card-head">
-      <h3 class="phase-card-title">Apple Watch 連携で HR をリアルタイム表示</h3>
-      <span class="phase-badge future">◯ 長期</span>
+      <h3 class="phase-card-title">Even Hub Plugin アーキテクチャの天井</h3>
+      <span class="phase-badge future">⏸ 確定</span>
+    </div>
+    <p class="phase-meta">公式ドキュメント・SDK の <code>.d.ts</code> 棚卸し・公式 Skill カタログ調査の結果、ユーザー要望 3 件はすべてプラグイン枠では実現不可能と確定した。</p>
+
+    <h3>SDK 0.0.10（最新版）が公開しているデバイス API</h3>
+    <table class="simple">
+      <thead>
+        <tr><th>API</th><th>内容</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>audioControl(isOpen)</code></td><td>マイク PCM 16kHz / 16-bit / mono 取得</td></tr>
+        <tr><td><code>imuControl(isOpen, pace)</code></td><td><strong>G2 グラス本体の IMU</strong>（加速度/角速度）取得</td></tr>
+        <tr><td><code>getDeviceInfo()</code> / <code>onDeviceStatusChanged</code></td><td>G2 のバッテリ・装着状態・充電状況</td></tr>
+        <tr><td><code>getUserInfo()</code></td><td>Even Hub ログインユーザー情報</td></tr>
+        <tr><td><code>setLocalStorage</code> / <code>getLocalStorage</code></td><td>プラグインスコープ KV ストア</td></tr>
+      </tbody>
+    </table>
+
+    <h3>入力イベント（Phase 2 で活用）</h3>
+    <ul class="phase-features">
+      <li><strong>入力源</strong>: <code>TOUCH_EVENT_FROM_GLASSES_R</code> / <code>TOUCH_EVENT_FROM_RING</code>（R1 リング） / <code>TOUCH_EVENT_FROM_GLASSES_L</code></li>
+      <li><strong>イベント種別</strong>: <code>CLICK_EVENT</code> / <code>SCROLL_TOP_EVENT</code> / <code>SCROLL_BOTTOM_EVENT</code> / <code>DOUBLE_CLICK_EVENT</code></li>
+      <li>→ <strong>R1 リングのスクロール</strong>は <code>eventSource = TOUCH_EVENT_FROM_RING</code> + <code>SCROLL_TOP/BOTTOM_EVENT</code> で取得可能</li>
+    </ul>
+
+    <h3>SDK が提供していないもの（公式明文 + d.ts 全行 grep で確認）</h3>
+    <div class="note">
+      公式 <code>docs/guides/device-apis</code> より引用:<br>
+      <em>"No direct Bluetooth access, no arbitrary pixel drawing, no audio output, ... no camera, and images are greyscale only."</em>
+    </div>
+    <ul class="phase-features">
+      <li>❌ GPS / Geolocation API 無し（Web 標準の <code>navigator.geolocation</code> 経由のみ）</li>
+      <li>❌ HealthKit bridge 無し</li>
+      <li>❌ Apple Watch / WatchConnectivity bridge 無し</li>
+      <li>❌ Background execution API 無し
+        <ul>
+          <li>公式 Skill Catalog には <code>/background-state</code> が記載されるが、<strong>現 SDK 0.0.10 の export には <code>setBackgroundState</code> / <code>onBackgroundRestore</code> 等の該当 API は存在しない</strong>（<code>d.ts</code> 全行 grep + npm registry 最新版で確認）</li>
+          <li>仮に将来 export されても state snapshot 用であって、JS 実行継続（=GPS watcher 継続）の API ではない</li>
+        </ul>
+      </li>
+      <li>❌ 心拍 / 歩数 / ペドメータ API 無し</li>
+    </ul>
+
+    <h3>結論</h3>
+    <table class="simple">
+      <thead>
+        <tr><th>要望</th><th>結論</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>画面ロック・Even Hub バックグラウンド中の GPS 継続</strong></td><td>SDK 提供不能・プラグイン枠で不可能</td></tr>
+        <tr><td><strong>Even Hub 前面維持時の GPS 復帰耐性向上</strong></td><td>改善余地あり（Wake Lock / visibilitychange 復帰時の watchPosition restart は既存実装あり）</td></tr>
+        <tr><td>Apple Watch → G2</td><td>不可能</td></tr>
+        <tr><td>G2 → HealthKit</td><td>不可能</td></tr>
+      </tbody>
+    </table>
+    <p class="phase-meta"><strong>Even Realities への feature request は旦那様の意思で見送り</strong>（対応を待ちつつ、現状制約下の機能充実を優先）。</p>
+  </div>
+</section>
+
+
+
+<!-- ============================================================
+     Phase 3: 心拍数反映 (保留)
+============================================================ -->
+<section>
+  <h2>Phase 3: 心拍数反映（⏸ 保留）</h2>
+
+  <div class="phase-card future">
+    <div class="phase-card-head">
+      <h3 class="phase-card-title">Apple Watch / HealthKit 連携</h3>
+      <span class="phase-badge future">⏸ 保留</span>
     </div>
 
     <div class="note warning">
-      <strong>⚠ 重要な制約:</strong> 現 MVP の Even Hub プラグイン（WebView ベース）単体では実現困難。
-      <strong>iOS ネイティブアプリ化</strong>が必要で、工数も大きい（2〜4 週間想定）。
+      <strong>2026-05-26 SDK 調査でプラグイン枠での実装が不可能と確定。</strong>
+      Even Realities への feature request も旦那様の意思で見送り。SDK 側の対応を待ちつつ、現状制約下の機能充実（Phase 2）を優先する。
     </div>
 
-    <h3>必要な技術構成</h3>
+    <h3>保留中の理由</h3>
+    <ul class="phase-features">
+      <li>必要技術: HealthKit / WatchConnectivity → SDK に bridge 無し</li>
+      <li>ネイティブアプリ化（iOS native + watchOS）の工数（2〜4 週間）と価値の比較で当面着手しない判断</li>
+      <li>Even Realities が SDK で対応してくれた場合は即座に再開</li>
+    </ul>
+
+    <h3>解除条件（どれかが成立したら再開検討）</h3>
+    <ol>
+      <li>Even Hub SDK に HealthKit / Watch 連携 API が追加される</li>
+      <li>旦那様が feature request を出して対応が得られる</li>
+      <li>ネイティブアプリ化を専用プロジェクトとして別途立ち上げる判断をする</li>
+    </ol>
+
+    <h3>参考: 必要な技術構成（再開時の事前整理用）</h3>
     <div class="hud-preview" style="background: #fafaf7; color: var(--c-text); font-family: inherit;">
       <pre style="margin: 0; font-family: 'SF Mono', Menlo, monospace; font-size: 13px;">
 Apple Watch App (watchOS)
@@ -613,71 +879,35 @@ Even Hub Plugin (WebView)  ← Bridge 経由で受信
 G2 ディスプレイ
       </pre>
     </div>
-
-    <h3>必要な要素</h3>
-    <ul class="phase-features">
-      <li><strong>watchOS アプリ</strong>: Apple Watch 上で <code>HKWorkoutSession</code> で心拍取得</li>
-      <li><strong>iOS ネイティブアプリ</strong>: <code>WatchConnectivity</code> で Watch から受信</li>
-      <li><strong>WebView ↔ Native ブリッジ</strong>: iOS アプリと Even Hub プラグインの通信路</li>
-      <li><strong>HealthKit 権限</strong>: Info.plist + 認証 UI</li>
-    </ul>
-
-    <h3>代替案</h3>
-    <ul class="phase-features">
-      <li><strong>Phase 3a</strong>: 手動入力（推定 HR を入力 → 経過時間ベースで概算表示・1 セッション）</li>
-      <li><strong>Phase 3b</strong>: BLE 直結（Polar 等の BLE 心拍計を G2 直接接続・SDK 制約調査要）</li>
-    </ul>
-
-    <div class="note">
-      <strong>推奨着手タイミング:</strong> Phase 2（データ保存）完了後、運用 1 ヶ月程度経過し、本当に必要だと判断できてから着手。先にネイティブアプリ化の影響範囲を別 spec で起こす。
-    </div>
   </div>
 </section>
 
 <!-- ============================================================
-     Phase 4: AI 動的メッセージ
+     Phase 4: AI 動的メッセージ (保留)
 ============================================================ -->
 <section>
-  <h2>Phase 4: AI 動的メッセージ</h2>
+  <h2>Phase 4: AI 動的メッセージ（⏸ 保留）</h2>
 
   <div class="phase-card future">
     <div class="phase-card-head">
-      <h3 class="phase-card-title">心拍 / ペース / ラップから状況に応じた声がけ</h3>
-      <span class="phase-badge future">◯ 長期</span>
+      <h3 class="phase-card-title">Claude API による状況メッセージ生成</h3>
+      <span class="phase-badge future">⏸ 保留</span>
     </div>
 
-    <p>ラップ完了時に Claude API を呼んでメッセージ生成。固定 10 種からの卒業。</p>
-
-    <h3>例</h3>
-    <div class="note">
-      <strong>入力:</strong> ラップ 3 完了、ラップタイム 5'42"、平均より 8 秒速い、心拍 165（やや高い）<br>
-      <strong>出力例:</strong> 「ペース上がってきてるね！心拍は無理しない範囲で。次は呼吸整えていこう」
+    <div class="note warning">
+      Phase 3（心拍）依存で価値が最大化される設計のため、Phase 3 保留と連動して凍結。
     </div>
 
-    <h3>設計検討事項</h3>
-    <table class="simple">
-      <thead>
-        <tr><th>項目</th><th>検討内容</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>呼び出し頻度</td><td>ラップ時のみ（バッテリー・通信効率優先）</td></tr>
-        <tr><td>レイテンシ</td><td>&lt; 2 秒目標（ラップ画面 5〜8 秒表示内に収める）</td></tr>
-        <tr><td>プロンプト設計</td><td>キャラ設定 / トーン調整 / NG 表現リスト</td></tr>
-        <tr><td>フォールバック</td><td>API 失敗時は既存 10 種からランダム</td></tr>
-        <tr><td>コスト</td><td>月あたりラン頻度 × ラップ数 × ~$0.001/call（Haiku 4.5 想定）</td></tr>
-      </tbody>
-    </table>
-
-    <h3>実装影響範囲</h3>
+    <h3>再開条件</h3>
     <ul class="phase-features">
-      <li><code>src/ai/</code>（新規）: AI 呼び出しラッパー + プロンプトテンプレート</li>
-      <li><code>src/run/state.ts</code>: ラップ生成時に AI message を待つロジック</li>
-      <li><code>src/run/messages.ts</code>: フォールバック専用に縮退</li>
-      <li>設定 UI: API キー入力 + キャラ選択 + ON/OFF トグル</li>
+      <li>Phase 3 解除、または</li>
+      <li>心拍データ無しでも価値が出る設計（距離・ペース・LAP のみで AI メッセージ）に組み直す判断</li>
     </ul>
 
+    <h3>参考: 設計の叩き台（再開時用）</h3>
     <div class="note">
-      <strong>推奨着手タイミング:</strong> Phase 3（心拍数）完了後。心拍データが取れることで AI メッセージの精度が大きく上がるため。
+      <strong>入力例:</strong> ラップ 3 完了、ラップタイム 5'42"、平均より 8 秒速い、心拍 165（やや高い）<br>
+      <strong>出力例:</strong> 「ペース上がってきてるね！心拍は無理しない範囲で。次は呼吸整えていこう」
     </div>
   </div>
 </section>
@@ -740,14 +970,19 @@ G2 ディスプレイ
     <li>仕様書: <code>even-g2-run-hud-handoff.md</code></li>
     <li>旦那様向けハンドオフ: <code>docs/HANDOFF.md</code></li>
     <li>AI 用ロードマップ: <code>docs/ROADMAP.md</code></li>
+    <li><strong>CODEX 補正資料</strong>: <code>docs/CLAUDE_IMPLEMENTATION_BRIEF.md</code>（実装前に必読）</li>
     <li>学習メモ: <code>.claude/rules/learning/core.md</code></li>
     <li>Even Hub 公式: <a href="https://hub.evenrealities.com/docs/">hub.evenrealities.com/docs/</a></li>
+    <li>Even Hub Device APIs: <a href="https://hub.evenrealities.com/docs/guides/device-apis">hub.evenrealities.com/docs/guides/device-apis</a></li>
+    <li>Even Hub Design Guidelines: <a href="https://hub.evenrealities.com/docs/guides/design-guidelines">hub.evenrealities.com/docs/guides/design-guidelines</a></li>
+    <li>Even Hub Skill Catalog: <a href="https://hub.evenrealities.com/docs/AI-tooling/claude%20code/skill-catalog">hub.evenrealities.com/docs/AI-tooling/claude code/skill-catalog</a></li>
     <li>Even Hub テンプレ: <a href="https://github.com/even-realities/evenhub-templates">github.com/even-realities/evenhub-templates</a></li>
+    <li>Even Hub SDK: <code>@evenrealities/even_hub_sdk</code>（npm）— 現在 v0.0.10</li>
   </ul>
 </section>
 
 <footer>
-  G2 Run HUD Roadmap ・ 2026-05-24 作成 ・ <a href="https://github.com/spwebcreat/eveng2-run">github.com/spwebcreat/eveng2-run</a>
+  G2 Run HUD Roadmap ・ 2026-05-24 作成 / 2026-05-26 更新 ・ <a href="https://github.com/spwebcreat/eveng2-run">github.com/spwebcreat/eveng2-run</a>
 </footer>
 
 </body>
