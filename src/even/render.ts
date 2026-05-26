@@ -3,11 +3,18 @@
 //   上段: 経過時間 / 距離 / 日付時刻
 //   中央: メッセージ表示領域
 //   下段: 心拍数 / 平均ペース / ステータス（媒体プレーヤー風記号 RUN ▶ / PAUSE ||）
-// - 副作用なし。state.ts / format.ts のみに依存
+// - Phase 2: currentPage に応じて Page 1 / 2 / 3 を切り替え
+//     Page 1 = HUD（既存挙動を完全維持）
+//     Page 2 = LAP 直近 3 件リスト（中央 message に集約・上下段は ' ' で隠す）
+//     Page 3 = LAP サマリ（BEST / SLOW / AVG・中央 message に集約・上下段は ' ' で隠す）
+//   ただし screenMode === 'lap'（ラップ通知中）は currentPage に関わらず Page 1 を表示する。
+//   既存のラップ通知 UX（6 秒間ハイライト）を妨げないため。
+// - 副作用なし。state.ts / format.ts / summary.ts のみに依存
 
 import { CONTAINER_IDS, type RenderMap } from './bridge'
-import type { RunState } from '../run/state'
+import type { RunState, Lap, PageId } from '../run/state'
 import { formatDistance, formatPace, formatTime } from '../run/format'
+import { selectLapSummary } from '../run/summary'
 
 /**
  * 「5月24日  10:36」フォーマット（漢字含む・最も読める）
@@ -100,11 +107,52 @@ function messageText(state: RunState): string {
 }
 
 /**
- * 現在 state から container 別 content を生成する。
- * @param state  RunState
- * @param now    現在時刻（DI でテスト容易性確保）
+ * Page 2: LAP 直近 3 件のリスト表示用文字列。
+ * - laps が空: 案内文 2 行
+ * - laps が 1+ 件: 新しい順に最大 3 件、各行 `LAP n  m'ss" / AVG m'ss"`
+ * 1 ヶ所の text container (textMessage) に \n 区切りで詰める。
  */
-export function renderForState(state: RunState, now: Date = new Date()): RenderMap {
+function lapListText(laps: ReadonlyArray<Lap>): string {
+  if (laps.length === 0) {
+    return 'LAP 履歴なし\n1km走るとここに表示されます'
+  }
+  // 新しい順 = 末尾から最大 3 件
+  const recent = laps.slice(-3).reverse()
+  const lines = recent.map((lap) => {
+    const lapPace = lap.lapTimeMs > 0 ? formatPace(lap.lapTimeMs / 1000) : "--'--\""
+    const avgPace = formatPace(lap.averagePaceSecPerKm)
+    return `LAP ${lap.km}  ${lapPace} / AVG ${avgPace}`
+  })
+  return lines.join('\n')
+}
+
+/**
+ * Page 3: LAP サマリ表示用文字列。
+ * - laps が空: 案内文 2 行
+ * - laps が 1+ 件: BEST / SLOW / AVG の 3 行
+ *   位置揃え目的でラベルは半角スペースで桁を揃える（proportional font なので近似）。
+ */
+function lapSummaryText(laps: ReadonlyArray<Lap>): string {
+  const summary = selectLapSummary(laps)
+  if (summary.fastest === null || summary.slowest === null) {
+    return 'サマリなし\n1km以上走ると表示されます'
+  }
+  const bestPace =
+    summary.fastest.lapTimeMs > 0 ? formatPace(summary.fastest.lapTimeMs / 1000) : "--'--\""
+  const slowPace =
+    summary.slowest.lapTimeMs > 0 ? formatPace(summary.slowest.lapTimeMs / 1000) : "--'--\""
+  const avgPace = formatPace(summary.averagePaceSecPerKm)
+  return [
+    `BEST  LAP ${summary.fastest.km}   ${bestPace}`,
+    `SLOW  LAP ${summary.slowest.km}   ${slowPace}`,
+    `AVG          ${avgPace}`,
+  ].join('\n')
+}
+
+/**
+ * Page 1 (HUD) の RenderMap を構築。既存挙動を完全維持。
+ */
+function renderPage1(state: RunState, now: Date): RenderMap {
   const map = new Map<number, string>()
 
   // 上段: 経過時間 / 距離 / 日付・時刻
@@ -124,4 +172,43 @@ export function renderForState(state: RunState, now: Date = new Date()): RenderM
   // 毎フレーム再送すると無駄なので明示的に map に入れない（bridge 側で「未指定=維持」になる）
 
   return map
+}
+
+/**
+ * Page 2 / 3 共通: 上下段 6 container を半角スペース ' ' で隠し、中央 message のみ更新する。
+ * - bridge 側で空文字 '' は ' ' に変換されるが、ここでは明示的に ' ' を送って意図を明確にする。
+ */
+function renderCenterOnly(centerText: string): RenderMap {
+  const map = new Map<number, string>()
+  const blank = ' '
+  map.set(CONTAINER_IDS.textTime, blank)
+  map.set(CONTAINER_IDS.textDistance, blank)
+  map.set(CONTAINER_IDS.textClock, blank)
+  map.set(CONTAINER_IDS.textMessage, centerText)
+  map.set(CONTAINER_IDS.textHr, blank)
+  map.set(CONTAINER_IDS.textPace, blank)
+  map.set(CONTAINER_IDS.textStatus, blank)
+  return map
+}
+
+/**
+ * 現在 state から container 別 content を生成する。
+ * @param state  RunState
+ * @param now    現在時刻（DI でテスト容易性確保）
+ */
+export function renderForState(state: RunState, now: Date = new Date()): RenderMap {
+  // lap 通知中は currentPage に関わらず Page 1 表示優先（既存ラップ通知 UX を妨げない）
+  if (state.screenMode === 'lap') {
+    return renderPage1(state, now)
+  }
+
+  const page: PageId = state.currentPage
+  if (page === 2) {
+    return renderCenterOnly(lapListText(state.laps))
+  }
+  if (page === 3) {
+    return renderCenterOnly(lapSummaryText(state.laps))
+  }
+  // page === 1 (default)
+  return renderPage1(state, now)
 }
