@@ -43,22 +43,71 @@
         </div>
       </section>
 
+      <section class="card mode-card" id="mode-section" aria-labelledby="mode-heading">
+        <h2 id="mode-heading">モード</h2>
+        <div class="mode-segmented" role="radiogroup" aria-label="走行モード">
+          <button
+            type="button"
+            class="mode-option is-active"
+            id="mode-btn-run"
+            role="radio"
+            aria-checked="true"
+            data-mode="run"
+          >
+            <span class="mode-icon" aria-hidden="true">▶</span>
+            <span class="mode-label">RUN</span>
+          </button>
+          <button
+            type="button"
+            class="mode-option"
+            id="mode-btn-walk"
+            role="radio"
+            aria-checked="false"
+            data-mode="walk"
+          >
+            <span class="mode-icon" aria-hidden="true">▶</span>
+            <span class="mode-label">WALK</span>
+          </button>
+        </div>
+        <p class="mode-hint" id="mode-hint">走行中はモードを変更できません</p>
+      </section>
+
       <section class="card">
         <h2>操作</h2>
         <div class="actions">
           <button class="btn primary" id="btn-start-pause" type="button">スタート</button>
           <button class="btn warning" id="btn-reset" type="button" disabled>リセット</button>
-          <button class="btn" id="btn-laps-clear" type="button" disabled>履歴クリア</button>
         </div>
         <div class="notice info" id="action-hint" style="display: none">
-          G2 本体でも操作可能: Tap = スタート/一時停止 / Double Tap = リセット
+          G2 本体でも操作可能: Tap = スタート/一時停止 / Double Tap = リセット / R1 リング = ページ送り
         </div>
       </section>
 
-      <section class="card">
-        <h2>ラップ履歴</h2>
+      <section class="card laps-card" aria-labelledby="laps-heading">
+        <div class="card-head">
+          <h2 id="laps-heading">現在の LAP</h2>
+          <span class="card-meta" id="laps-count" aria-label="LAP 数">0</span>
+        </div>
         <div class="laps" id="laps-container">
-          <div class="laps-empty">1km を超えるとラップが記録されます。</div>
+          <div class="laps-empty">1km を超えるとここに記録されます</div>
+        </div>
+      </section>
+
+      <section class="card history-card" aria-labelledby="history-heading">
+        <div class="card-head">
+          <h2 id="history-heading">過去の走行</h2>
+          <button
+            type="button"
+            class="btn-ghost"
+            id="btn-history-clear"
+            aria-label="履歴をクリア"
+            disabled
+          >
+            クリア
+          </button>
+        </div>
+        <div class="history-list" id="history-list">
+          <div class="history-empty">まだ走行履歴はありません</div>
         </div>
       </section>
 
@@ -81,7 +130,7 @@
       </section>
 
       <footer class="footer">
-        v0.2.6 / Even Hub Plugin / 旦那様向け Hub アップロード手順は <code>docs/HANDOFF.md</code>
+        v0.3.0 / Even Hub Plugin / 旦那様向け Hub アップロード手順は <code>docs/HANDOFF.md</code>
       </footer>
     </div>
 

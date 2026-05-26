@@ -30,3 +30,6 @@ dist/
 
 # シミュレータ・実機キャプチャ
 glasses_*.png
+
+# Penpot デザインソース（バイナリ 100MB 級・別管理）
+docs/EvenRealities.pen

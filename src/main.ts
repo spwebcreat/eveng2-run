@@ -18,6 +18,11 @@ import { renderForState } from './even/render'
 import { RunStore, type RunState } from './run/state'
 import { startGeolocation, type GeolocationHandle } from './run/geolocation'
 import { formatDistance, formatPace, formatTime, formatHeartRate } from './run/format'
+import type { StoragePort } from './storage/ports'
+import { createBrowserStorageAdapter } from './storage/browser-adapter'
+import { createSdkStorageAdapter } from './storage/sdk-adapter'
+import { appendHistory, clearHistory, loadHistory } from './storage/run-history'
+import { createEmptyHistory, type RunHistory } from './storage/types'
 
 // ---- DOM 取得（必須要素は型ガード） ----
 function $(id: string): HTMLElement {
@@ -33,8 +38,13 @@ const elMetricTime = $('metric-time')
 const elMetricHr = $('metric-hr')
 const elBtnStartPause = $('btn-start-pause') as HTMLButtonElement
 const elBtnReset = $('btn-reset') as HTMLButtonElement
-const elBtnLapsClear = $('btn-laps-clear') as HTMLButtonElement
 const elLapsContainer = $('laps-container')
+const elLapsCount = $('laps-count')
+const elModeSection = $('mode-section')
+const elModeRun = $('mode-btn-run') as HTMLButtonElement
+const elModeWalk = $('mode-btn-walk') as HTMLButtonElement
+const elHistoryList = $('history-list')
+const elBtnHistoryClear = $('btn-history-clear') as HTMLButtonElement
 const elStatusStatus = $('status-status')
 const elStatusScreen = $('status-screen')
 const elStatusBridge = $('status-bridge')
@@ -42,8 +52,25 @@ const elStatusGeo = $('status-geo')
 const elErrorNotice = $('error-notice')
 const elActionHint = $('action-hint')
 
-// ---- 初期化 ----
-const store = new RunStore()
+// ---- Storage（Hub 接続後に SDK adapter へ差し替え） ----
+let storagePort: StoragePort = createBrowserStorageAdapter()
+let cachedHistory: RunHistory = createEmptyHistory()
+
+async function refreshHistory(): Promise<void> {
+  cachedHistory = await loadHistory(storagePort)
+  renderHistory()
+}
+
+// ---- 初期化（onHistorySave で reset 時に履歴保存） ----
+const store = new RunStore({
+  onHistorySave: (entry) => {
+    // reset() からの同期 callback。非同期 append は fire-and-forget で実行
+    void appendHistory(storagePort, entry).then((updated) => {
+      cachedHistory = updated
+      renderHistory()
+    })
+  },
+})
 
 // ---- 位置情報ハンドル（実 GPS のみ） ----
 let geoHandle: GeolocationHandle | null = null
@@ -208,7 +235,6 @@ function renderToDom(state: RunState, renderMap: RenderMap): void {
 
   // Reset は running 中以外で有効
   elBtnReset.disabled = state.status === 'running'
-  elBtnLapsClear.disabled = state.laps.length === 0 || state.status === 'running'
 
   // ステータス表示
   elStatusStatus.textContent = state.status
@@ -247,36 +273,157 @@ function formatHudPreview(map: RenderMap): string {
 }
 
 function renderLapsDom(state: RunState): void {
+  elLapsCount.textContent = String(state.laps.length)
   if (state.laps.length === 0) {
     elLapsContainer.innerHTML =
-      '<div class="laps-empty">1km を超えるとラップが記録されます。</div>'
+      '<div class="laps-empty">1km を超えるとここに記録されます</div>'
     return
   }
-  // 最新が上に来るように reverse
-  const rows = [...state.laps].reverse().map((lap) => {
+  // 最新が上に来るように reverse。DOM 構築は createElement で XSS 安全
+  elLapsContainer.innerHTML = ''
+  for (const lap of [...state.laps].reverse()) {
     const lapPace = lap.lapTimeMs > 0 ? formatPace(lap.lapTimeMs / 1000) : "--'--\""
     const avgPace = formatPace(lap.averagePaceSecPerKm)
     const message = lap.message ?? ''
+
     const row = document.createElement('div')
     row.className = 'lap-row'
 
-    const label = document.createElement('span')
-    label.className = 'label'
-    label.textContent = `LAP ${lap.km}  ${lapPace} / AVG ${avgPace}`
+    const head = document.createElement('div')
+    head.className = 'lap-row-head'
+    const km = document.createElement('span')
+    km.className = 'lap-km'
+    km.textContent = `LAP ${lap.km}`
+    const time = document.createElement('span')
+    time.className = 'lap-time'
+    time.textContent = lapPace
+    head.appendChild(km)
+    head.appendChild(time)
 
+    const meta = document.createElement('div')
+    meta.className = 'lap-row-meta'
+    const avg = document.createElement('span')
+    avg.className = 'lap-avg'
+    avg.textContent = `AVG ${avgPace}/km`
     const msg = document.createElement('span')
-    msg.className = 'message'
+    msg.className = 'lap-msg'
     msg.textContent = message
+    meta.appendChild(avg)
+    meta.appendChild(msg)
 
-    row.appendChild(label)
-    row.appendChild(msg)
-    return row
-  })
-
-  elLapsContainer.innerHTML = ''
-  for (const row of rows) {
+    row.appendChild(head)
+    row.appendChild(meta)
     elLapsContainer.appendChild(row)
   }
+}
+
+/**
+ * モード選択 (RUN / WALK) の表示制御。
+ * - idle 中はトグル可能、それ以外は disabled + 表示縮小（active 側のみ表示）
+ */
+function renderMode(state: RunState): void {
+  const locked = state.status !== 'idle'
+  elModeSection.classList.toggle('is-locked', locked)
+  elModeRun.classList.toggle('is-active', state.mode === 'run')
+  elModeWalk.classList.toggle('is-active', state.mode === 'walk')
+  elModeRun.setAttribute('aria-checked', String(state.mode === 'run'))
+  elModeWalk.setAttribute('aria-checked', String(state.mode === 'walk'))
+  elModeRun.disabled = locked
+  elModeWalk.disabled = locked
+}
+
+/**
+ * 過去の走行履歴 (cachedHistory) を DOM に描画。
+ * - 0 件 → empty state
+ * - クリアボタンは履歴があれば有効
+ * - 各エントリは <details> で折りたたみ、LAP 詳細を中に
+ */
+function renderHistory(): void {
+  elBtnHistoryClear.disabled = cachedHistory.entries.length === 0
+  if (cachedHistory.entries.length === 0) {
+    elHistoryList.innerHTML = '<div class="history-empty">まだ走行履歴はありません</div>'
+    return
+  }
+  elHistoryList.innerHTML = ''
+  for (const entry of cachedHistory.entries) {
+    const details = document.createElement('details')
+    details.className = 'history-entry'
+
+    const summary = document.createElement('summary')
+    summary.className = 'history-summary'
+
+    const date = document.createElement('div')
+    date.className = 'history-date'
+    date.textContent = formatHistoryDate(entry.startedAt)
+    summary.appendChild(date)
+
+    const stats = document.createElement('div')
+    stats.className = 'history-stats'
+
+    const badge = document.createElement('span')
+    badge.className = `mode-badge ${entry.mode === 'run' ? 'mode-badge-run' : 'mode-badge-walk'}`
+    badge.textContent = entry.mode === 'run' ? 'RUN' : 'WALK'
+    stats.appendChild(badge)
+
+    const dist = document.createElement('span')
+    dist.className = 'stat-dist'
+    dist.textContent = `${formatDistance(entry.distanceM)} km`
+    stats.appendChild(dist)
+
+    const time = document.createElement('span')
+    time.className = 'stat-time'
+    time.textContent = formatTime(entry.elapsedMs)
+    stats.appendChild(time)
+
+    const pace = document.createElement('span')
+    pace.className = 'stat-pace'
+    pace.textContent = `${formatPace(entry.averagePaceSecPerKm)}/km`
+    stats.appendChild(pace)
+
+    summary.appendChild(stats)
+    details.appendChild(summary)
+
+    if (entry.laps.length > 0) {
+      const detail = document.createElement('div')
+      detail.className = 'history-detail'
+
+      const h4 = document.createElement('h4')
+      h4.textContent = 'LAP 詳細'
+      detail.appendChild(h4)
+
+      const ol = document.createElement('ol')
+      ol.className = 'history-laps'
+      for (const lap of entry.laps) {
+        const li = document.createElement('li')
+        const lapKm = document.createElement('span')
+        lapKm.textContent = `LAP ${lap.km}`
+        const lapTime = document.createElement('span')
+        lapTime.textContent = lap.lapTimeMs > 0 ? formatPace(lap.lapTimeMs / 1000) : "--'--\""
+        const lapMsg = document.createElement('span')
+        lapMsg.textContent = lap.message ?? ''
+        li.appendChild(lapKm)
+        li.appendChild(lapTime)
+        li.appendChild(lapMsg)
+        ol.appendChild(li)
+      }
+      detail.appendChild(ol)
+      details.appendChild(detail)
+    }
+
+    elHistoryList.appendChild(details)
+  }
+}
+
+/**
+ * 履歴エントリの日時を「5月26日 (火) 09:23」形式に整形
+ */
+function formatHistoryDate(ms: number): string {
+  const d = new Date(ms)
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土']
+  const wd = weekdays[d.getDay()] ?? ''
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${d.getMonth() + 1}月${d.getDate()}日 (${wd}) ${hh}:${mm}`
 }
 
 // ---- まとめて再描画（state 変化と 1 秒 tick から共通呼び出し） ----
@@ -295,6 +442,7 @@ function renderAll(state: RunState): void {
 // ---- store 購読 → DOM + G2 + 位置情報ソース ----
 storeUnsubscribe = store.subscribe((state) => {
   renderAll(state)
+  renderMode(state)
   syncPositionSourceFor(state)
 })
 
@@ -305,13 +453,45 @@ const onStartPauseClick = (): void => {
 const onResetClick = (): void => {
   store.reset()
 }
-const onLapsClearClick = (): void => {
-  // laps クリアは reset 経由（純粋な laps だけ消す API は提供せず簡素化）
-  store.reset()
+const onModeRunClick = (): void => {
+  store.setMode('run')
 }
+const onModeWalkClick = (): void => {
+  store.setMode('walk')
+}
+
+// 履歴クリアは 2 段階確認（誤タップ防止）
+// 1 回目: ボタンを is-confirming 状態に + 文言変更、3 秒後タイムアウトで戻す
+// 2 回目（3 秒以内）: 確定して履歴を消去
+let historyClearConfirmTimer: ReturnType<typeof setTimeout> | null = null
+function resetHistoryClearButton(): void {
+  elBtnHistoryClear.classList.remove('is-confirming')
+  elBtnHistoryClear.textContent = 'クリア'
+  if (historyClearConfirmTimer !== null) {
+    clearTimeout(historyClearConfirmTimer)
+    historyClearConfirmTimer = null
+  }
+}
+const onHistoryClearClick = (): void => {
+  if (elBtnHistoryClear.classList.contains('is-confirming')) {
+    void clearHistory(storagePort).then(async () => {
+      resetHistoryClearButton()
+      await refreshHistory()
+    })
+    return
+  }
+  elBtnHistoryClear.classList.add('is-confirming')
+  elBtnHistoryClear.textContent = 'もう一度タップで確定'
+  historyClearConfirmTimer = setTimeout(() => {
+    resetHistoryClearButton()
+  }, 3000)
+}
+
 elBtnStartPause.addEventListener('click', onStartPauseClick)
 elBtnReset.addEventListener('click', onResetClick)
-elBtnLapsClear.addEventListener('click', onLapsClearClick)
+elModeRun.addEventListener('click', onModeRunClick)
+elModeWalk.addEventListener('click', onModeWalkClick)
+elBtnHistoryClear.addEventListener('click', onHistoryClearClick)
 
 // ---- EvenAppBridge 起動（F2 2 段分離） ----
 const BRIDGE_TIMEOUT_MS = 5000
@@ -366,6 +546,10 @@ async function bootstrapBridge(): Promise<void> {
     elStatusBridge.setAttribute('data-state', 'connected')
     elStatusBridge.textContent = '接続済'
 
+    // Hub 接続後は SDK storage を優先（Hub 内 WebView でも永続化を担保）
+    storagePort = createSdkStorageAdapter(bridge)
+    void refreshHistory()
+
     g2Unsubscribe = g2Handle.onEvent((event) => {
       routeEvent(event, {
         store,
@@ -395,11 +579,16 @@ async function cleanup(): Promise<void> {
   try {
     elBtnStartPause.removeEventListener('click', onStartPauseClick)
     elBtnReset.removeEventListener('click', onResetClick)
-    elBtnLapsClear.removeEventListener('click', onLapsClearClick)
+    elModeRun.removeEventListener('click', onModeRunClick)
+    elModeWalk.removeEventListener('click', onModeWalkClick)
+    elBtnHistoryClear.removeEventListener('click', onHistoryClearClick)
     document.removeEventListener('visibilitychange', onVisibilityChange)
   } catch {
     /* noop */
   }
+
+  // 履歴クリア確認タイマー解放
+  resetHistoryClearButton()
 
   // Wake Lock 解放
   void releaseWakeLock()
@@ -444,5 +633,6 @@ window.addEventListener('beforeunload', () => {
   void cleanup()
 })
 
-// 起動
+// 起動：bridge 接続 + 履歴初回ロード（並列）
 void bootstrapBridge()
+void refreshHistory()

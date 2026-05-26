@@ -8,9 +8,14 @@
 
 import { averagePaceSecPerKm, currentPaceSecPerKm, haversineDistanceM } from './pace'
 import { detectLap } from './lap'
+import type { RunHistoryEntry } from '../storage/types'
 
 export type Status = 'idle' | 'running' | 'paused'
 export type ScreenMode = 'idle' | 'gps-waiting' | 'running' | 'paused' | 'lap' | 'error'
+export type RunMode = 'run' | 'walk'
+export type PageId = 1 | 2 | 3
+
+export const PAGE_IDS: ReadonlyArray<PageId> = [1, 2, 3]
 
 export interface GeoPosition {
   lat: number
@@ -56,6 +61,16 @@ export interface RunState {
    * 手動 pause / 通常 running 時は null。
    */
   autoPauseAnchor: GeoPosition | null
+  /**
+   * 走行モード。READY (idle) 中のみ切替可能。走行中の切替は受け付けない。
+   * HUD ラベルと履歴の分類に使う（最小実装：閾値等は差別化しない）。
+   */
+  mode: RunMode
+  /**
+   * G2 表示の現在ページ。R1 リングの SCROLL_TOP / SCROLL_BOTTOM で循環。
+   * Page 1 = HUD（既存）/ Page 2 = LAP リスト / Page 3 = サマリ。
+   */
+  currentPage: PageId
 }
 
 const LAP_DISPLAY_MS = 6000 // ラップ画面表示時間（5〜8 秒の中央値）
@@ -71,12 +86,23 @@ const AUTO_PAUSE_MIN_DURATION_MS = 5_000
 
 type Listener = (state: Readonly<RunState>) => void
 
+export interface RunStoreOptions {
+  /**
+   * reset() 時に distanceM > 0 だった場合に呼ばれる履歴保存コールバック。
+   * 永続化の実装は呼び出し側（main.ts）が StoragePort 経由で行う。
+   * RunStore 自体は storage を知らない（責務分離）。
+   */
+  onHistorySave?: (entry: RunHistoryEntry) => void
+}
+
 export class RunStore {
   private state: RunState
   private listeners = new Set<Listener>()
   private lapTimerId: ReturnType<typeof setTimeout> | null = null
+  private readonly options: RunStoreOptions
 
-  constructor() {
+  constructor(options?: RunStoreOptions) {
+    this.options = options ?? {}
     this.state = createInitialState()
   }
 
@@ -109,6 +135,39 @@ export class RunStore {
     } else if (this.state.status === 'paused') {
       this.resume()
     }
+  }
+
+  /**
+   * 走行モード切替。READY (idle) 中のみ受け付ける。
+   * 走行中・一時停止中は無視（履歴の整合性を保つ）。
+   */
+  setMode(mode: RunMode): void {
+    if (this.state.status !== 'idle') return
+    if (this.state.mode === mode) return
+    this.state = { ...this.state, mode }
+    this.emit()
+  }
+
+  /**
+   * RUN ⇄ WALK トグル（READY 中のみ）。R1 リングからの呼び出し用。
+   */
+  toggleMode(): void {
+    if (this.state.status !== 'idle') return
+    this.setMode(this.state.mode === 'run' ? 'walk' : 'run')
+  }
+
+  /**
+   * G2 表示ページの循環。R1 リングからの呼び出し用。
+   * direction = 'next' で 1→2→3→1、'prev' で 1→3→2→1。
+   */
+  cyclePage(direction: 'next' | 'prev'): void {
+    const idx = PAGE_IDS.indexOf(this.state.currentPage)
+    const len = PAGE_IDS.length
+    const nextIdx = direction === 'next' ? (idx + 1) % len : (idx - 1 + len) % len
+    const nextPage = PAGE_IDS[nextIdx]
+    if (nextPage === undefined || nextPage === this.state.currentPage) return
+    this.state = { ...this.state, currentPage: nextPage }
+    this.emit()
   }
 
   start(): void {
@@ -239,11 +298,25 @@ export class RunStore {
   reset(): void {
     // 走行中の reset は受け付けない（idle / paused のみ）
     if (this.state.status === 'running') return
+
+    // 距離 > 0 ならば履歴保存をトリガー（永続化は呼び出し側で実施）
+    if (this.state.distanceM > 0 && this.options.onHistorySave) {
+      const entry = buildHistoryEntry(this.state)
+      try {
+        this.options.onHistorySave(entry)
+      } catch (err: unknown) {
+        // 履歴保存 callback の失敗は reset の継続を妨げない
+        const msg = err instanceof Error ? err.message : String(err)
+        console.warn('[g2-run-hud] onHistorySave failed:', msg)
+      }
+    }
+
     if (this.lapTimerId !== null) {
       clearTimeout(this.lapTimerId)
       this.lapTimerId = null
     }
-    this.state = createInitialState()
+    // mode は次のラン用に維持する（currentPage は 1 に戻す）
+    this.state = createInitialState({ mode: this.state.mode })
     this.emit()
   }
 
@@ -400,7 +473,27 @@ export class RunStore {
   }
 }
 
-function createInitialState(): RunState {
+/**
+ * 現在の RunState から履歴 1 件分の RunHistoryEntry を組み立てる。
+ * reset() からのみ呼ばれる pure 関数（state 変更しない）。
+ */
+function buildHistoryEntry(state: RunState): RunHistoryEntry {
+  const now = Date.now()
+  // ID: timestamp + base36 ランダム 6 文字（衝突しにくい）
+  const id = `${now}-${Math.random().toString(36).slice(2, 8)}`
+  return {
+    id,
+    startedAt: state.startedAt ?? now,
+    endedAt: now,
+    mode: state.mode,
+    distanceM: state.distanceM,
+    elapsedMs: state.elapsedMs,
+    averagePaceSecPerKm: state.averagePaceSecPerKm,
+    laps: [...state.laps],
+  }
+}
+
+function createInitialState(overrides?: Partial<Pick<RunState, 'mode'>>): RunState {
   return {
     status: 'idle',
     screenMode: 'idle',
@@ -420,5 +513,8 @@ function createInitialState(): RunState {
     errorMessage: null,
     isAutoPaused: false,
     autoPauseAnchor: null,
+    // mode は reset 後も維持する（次のラン用に保持）
+    mode: overrides?.mode ?? 'run',
+    currentPage: 1,
   }
 }
