@@ -29,19 +29,20 @@ export function formatClockHeader(now: Date): string {
 }
 
 /**
- * ステータスラベル（媒体プレーヤー風記号付き）。
- * Frame 34 のデザインに準拠:
- *   - running → "RUN ▶"
- *   - paused  → "PAUSE ||"
- *   - idle    → "READY ▶"   （スタート待ち）
- *   - gps-waiting → "GPS"
- *   - error   → "ERROR"
- *   - lap     → "LAP"
+ * ステータスラベル（媒体プレーヤー風記号付き・mode 反映）。
+ *   - running, mode=run  → "RUN ▶"
+ *   - running, mode=walk → "WALK ▶"
+ *   - paused             → "PAUSE ||"
+ *   - idle, mode=run     → "READY ▶ RUN"   （スタート待ち + 現在モード）
+ *   - idle, mode=walk    → "READY ▶ WALK"  （R1 リングで切替可）
+ *   - gps-waiting        → "GPS"
+ *   - error              → "ERROR"
+ *   - lap                → "LAP"
  */
 function statusLabel(state: RunState): string {
   switch (state.screenMode) {
     case 'running':
-      return 'RUN ▶'
+      return state.mode === 'walk' ? 'WALK ▶' : 'RUN ▶'
     case 'paused':
       return 'PAUSE ||'
     case 'gps-waiting':
@@ -52,8 +53,34 @@ function statusLabel(state: RunState): string {
       return 'LAP'
     case 'idle':
     default:
-      return 'READY ▶'
+      return state.mode === 'walk' ? 'READY ▶ WALK' : 'READY ▶ RUN'
   }
+}
+
+/**
+ * ページインジケータ（右端ドット 3 つでカレントを示す）。
+ *   Page 1 → ●○○
+ *   Page 2 → ○●○
+ *   Page 3 → ○○●
+ * fullwidth bullet (●○) は 4-bit gray ディスプレイでも明確に区別可能。
+ */
+function pageIndicator(page: PageId): string {
+  switch (page) {
+    case 1:
+      return '●○○'
+    case 2:
+      return '○●○'
+    case 3:
+      return '○○●'
+  }
+}
+
+/**
+ * 下段右の textStatus に流す content: ステータス + ページインジケータ。
+ * 例: "RUN ▶  ●○○"
+ */
+function statusWithPage(state: RunState): string {
+  return `${statusLabel(state)}  ${pageIndicator(state.currentPage)}`
 }
 
 /**
@@ -163,10 +190,10 @@ function renderPage1(state: RunState, now: Date): RenderMap {
   // 中央: メッセージ表示領域
   map.set(CONTAINER_IDS.textMessage, messageText(state))
 
-  // 下段: 心拍数 / 平均ペース / ステータス
+  // 下段: 心拍数 / 平均ペース / ステータス（mode + ページインジケータ込み）
   map.set(CONTAINER_IDS.textHr, `心拍数\n${heartRateText(state)}`)
   map.set(CONTAINER_IDS.textPace, `平均ペース\n${formatPace(state.averagePaceSecPerKm)}/km`)
-  map.set(CONTAINER_IDS.textStatus, statusLabel(state))
+  map.set(CONTAINER_IDS.textStatus, statusWithPage(state))
 
   // 透明イベントキャプチャ container は content 空白のまま（初回 attach 時の ' ' 設定で十分）
   // 毎フレーム再送すると無駄なので明示的に map に入れない（bridge 側で「未指定=維持」になる）
@@ -175,10 +202,11 @@ function renderPage1(state: RunState, now: Date): RenderMap {
 }
 
 /**
- * Page 2 / 3 共通: 上下段 6 container を半角スペース ' ' で隠し、中央 message のみ更新する。
+ * Page 2 / 3 共通: 上下段 5 container を半角スペース ' ' で隠し、中央 message + 下段右ステータスを更新する。
+ * - 下段右 textStatus はステータス + ページインジケータの表示を維持（ユーザーが現在ページを把握できる）
  * - bridge 側で空文字 '' は ' ' に変換されるが、ここでは明示的に ' ' を送って意図を明確にする。
  */
-function renderCenterOnly(centerText: string): RenderMap {
+function renderCenterOnly(state: RunState, centerText: string): RenderMap {
   const map = new Map<number, string>()
   const blank = ' '
   map.set(CONTAINER_IDS.textTime, blank)
@@ -187,7 +215,8 @@ function renderCenterOnly(centerText: string): RenderMap {
   map.set(CONTAINER_IDS.textMessage, centerText)
   map.set(CONTAINER_IDS.textHr, blank)
   map.set(CONTAINER_IDS.textPace, blank)
-  map.set(CONTAINER_IDS.textStatus, blank)
+  // ステータス + ページインジケータは Page 2/3 でも表示（現在ページを示すため）
+  map.set(CONTAINER_IDS.textStatus, statusWithPage(state))
   return map
 }
 
@@ -204,10 +233,10 @@ export function renderForState(state: RunState, now: Date = new Date()): RenderM
 
   const page: PageId = state.currentPage
   if (page === 2) {
-    return renderCenterOnly(lapListText(state.laps))
+    return renderCenterOnly(state, lapListText(state.laps))
   }
   if (page === 3) {
-    return renderCenterOnly(lapSummaryText(state.laps))
+    return renderCenterOnly(state, lapSummaryText(state.laps))
   }
   // page === 1 (default)
   return renderPage1(state, now)
