@@ -33,3 +33,6 @@ glasses_*.png
 
 # Penpot デザインソース（バイナリ 100MB 級・別管理）
 docs/EvenRealities.pen
+
+# デザインソース（Penpot 等のバイナリ、ローカル保管）
+docs/design/source/

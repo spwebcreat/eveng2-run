@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>G2 Run HUD v0.5+ ロードマップ — 判断レビュー画面</title>
+<meta name="description" content="G2 Run HUD v0.5+ ロードマップ。判断を返すための HTML。">
+<style>
+  :root {
+    --bg: #F3F3F3;
+    --surface: #FFFFFF;
+    --surface-soft: #FAFAF7;
+    --text: #252525;
+    --muted: #666666;
+    --border: #D8D4CC;
+    --border-strong: #BFB9AC;
+
+    --blocking: #B42318;
+    --blocking-bg: #FCEBE8;
+    --important: #9A6A00;
+    --important-bg: #FFF7E0;
+    --recommend: #2F7D4F;
+    --recommend-bg: #EAF4EF;
+    --info: #246B9F;
+    --info-bg: #EEF4FA;
+    --no-go: #666666;
+    --no-go-bg: #EFEFEF;
+
+    --shadow: 0 2px 6px rgba(0,0,0,.06);
+    --shadow-strong: 0 4px 14px rgba(0,0,0,.10);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+
+  /* ===== Top toolbar ===== */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .topbar h1 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+  .topbar h1 .ver {
+    color: var(--info);
+    font-weight: 600;
+    margin-left: 6px;
+  }
+  .topbar-spacer { flex: 1; }
+  .topbar select, .topbar button {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .topbar button.primary {
+    background: var(--text);
+    color: #fff;
+    border-color: var(--text);
+    font-weight: 600;
+  }
+  .topbar button.primary:hover { opacity: 0.9; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-group label { font-size: 12px; color: var(--muted); }
+
+  /* ===== Layout ===== */
+  .layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 0;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  .sidenav {
+    position: sticky;
+    top: 64px;
+    align-self: start;
+    padding: 24px 16px;
+    border-right: 1px solid var(--border);
+    height: calc(100vh - 64px);
+    overflow-y: auto;
+  }
+  .sidenav ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: section;
+  }
+  .sidenav li { margin-bottom: 4px; }
+  .sidenav a {
+    display: block;
+    padding: 6px 10px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    border-left: 3px solid transparent;
+    border-radius: 0 4px 4px 0;
+  }
+  .sidenav a:hover { background: var(--surface-soft); color: var(--text); }
+  .sidenav a.active {
+    color: var(--text);
+    border-left-color: var(--info);
+    background: var(--info-bg);
+    font-weight: 600;
+  }
+  .sidenav .section-num {
+    counter-increment: section;
+    display: inline-block;
+    width: 18px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .sidenav .section-num::before { content: counter(section) "."; }
+
+  main { padding: 32px 40px 96px 40px; min-width: 0; }
+  section { margin-bottom: 56px; scroll-margin-top: 80px; }
+
+  /* ===== Headings ===== */
+  h2 {
+    font-size: 24px;
+    margin: 0 0 8px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--text);
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  h2 .lead { font-size: 13px; font-weight: 500; color: var(--muted); }
+  h3 { font-size: 17px; margin: 24px 0 8px 0; }
+  h4 { font-size: 14px; margin: 16px 0 6px 0; color: var(--muted); }
+  p.intro { color: var(--muted); margin: 6px 0 20px 0; }
+
+  /* ===== SVG container ===== */
+  .figure {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0 24px 0;
+    box-shadow: var(--shadow);
+  }
+  .figure svg { display: block; width: 100%; height: auto; max-width: 100%; }
+  .figure figcaption {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* ===== Decision card ===== */
+  .decision-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 10px 0;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "title controls"
+      "desc  controls"
+      "meta  meta";
+    gap: 4px 16px;
+    transition: border-left-color 0.15s;
+  }
+  .decision-card[data-choice="keep"]  { border-left-color: var(--recommend); }
+  .decision-card[data-choice="drop"]  { border-left-color: var(--blocking); }
+  .decision-card[data-choice="defer"] { border-left-color: var(--important); }
+  .decision-card[data-locked="true"]  { background: var(--no-go-bg); }
+  .decision-card[data-locked="true"] .controls .seg { pointer-events: none; opacity: 0.55; }
+
+  .dc-title {
+    grid-area: title;
+    font-weight: 600;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .dc-desc { grid-area: desc; font-size: 13px; color: var(--muted); }
+  .controls {
+    grid-area: controls;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .dc-meta {
+    grid-area: meta;
+    margin-top: 8px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .dc-meta input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--text);
+    background: var(--surface-soft);
+  }
+
+  /* ===== Segmented control ===== */
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .seg button {
+    border: 0;
+    padding: 6px 12px;
+    background: var(--surface);
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border-right: 1px solid var(--border);
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button[data-active="true"][data-value="keep"] { background: var(--recommend-bg); color: var(--recommend); }
+  .seg button[data-active="true"][data-value="drop"] { background: var(--blocking-bg); color: var(--blocking); }
+  .seg button[data-active="true"][data-value="defer"]{ background: var(--important-bg); color: var(--important); }
+  .seg button:hover:not([data-active="true"]) { background: var(--surface-soft); }
+
+  /* ===== Badges ===== */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 99px;
+    border: 1px solid transparent;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+  .badge.blocking  { background: var(--blocking-bg);  color: var(--blocking);  border-color: var(--blocking);  }
+  .badge.important { background: var(--important-bg); color: var(--important); border-color: var(--important); }
+  .badge.recommend { background: var(--recommend-bg); color: var(--recommend); border-color: var(--recommend); }
+  .badge.info      { background: var(--info-bg);      color: var(--info);      border-color: var(--info);      }
+  .badge.nogo      { background: var(--no-go-bg);     color: var(--no-go);     border-color: var(--border-strong); }
+  .badge.phase     { background: var(--surface-soft); color: var(--muted);     border-color: var(--border-strong); }
+
+  /* ===== Constraint cards ===== */
+  .constraint-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    margin: 16px 0;
+  }
+  .constraint-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+  }
+  .constraint-card.blocking  { border-top: 4px solid var(--blocking);  }
+  .constraint-card.important { border-top: 4px solid var(--important); }
+  .constraint-card.info      { border-top: 4px solid var(--info);      }
+  .constraint-card h4 {
+    margin: 0 0 6px 0;
+    font-size: 14px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .constraint-card p { margin: 4px 0; font-size: 13px; color: var(--muted); }
+  .constraint-card .src {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ===== Phase block ===== */
+  .phase-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 14px 0;
+    box-shadow: var(--shadow);
+  }
+  .phase-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .phase-head .phase-name {
+    font-weight: 700;
+    font-size: 17px;
+  }
+  .phase-head .phase-dur { color: var(--muted); font-size: 13px; }
+  .phase-goal {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--border);
+  }
+
+  /* ===== Pro / Con grids ===== */
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 16px;
+    font-size: 13px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .table th, .table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .table th { background: var(--surface-soft); font-weight: 600; }
+  .table tr:last-child td { border-bottom: 0; }
+
+  /* ===== Export panel ===== */
+  .export-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .export-preview {
+    background: #1c1c1c;
+    color: #d4d4d4;
+    border-radius: 6px;
+    padding: 14px;
+    font-family: "SF Mono", "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    overflow-x: auto;
+    margin: 12px 0;
+    max-height: 360px;
+    overflow-y: auto;
+  }
+  .export-preview .k { color: #79c0ff; }
+  .export-preview .s { color: #a5d6ff; }
+  .export-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .export-actions button {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .export-actions button.primary {
+    background: var(--text);
+    color: #fff;
+    border-color: var(--text);
+  }
+  .export-actions button:hover { opacity: 0.92; }
+
+  /* ===== Toast ===== */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--text);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: var(--shadow-strong);
+    transition: transform 0.3s;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ===== Mobile ===== */
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidenav {
+      position: static;
+      height: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+      padding: 12px;
+    }
+    .sidenav ol {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .sidenav li { margin-bottom: 0; flex-shrink: 0; }
+    .sidenav a { white-space: nowrap; border-left: 0; border-bottom: 3px solid transparent; }
+    .sidenav a.active { border-left: 0; border-bottom-color: var(--info); }
+    main { padding: 20px 16px 80px 16px; }
+    .topbar h1 { font-size: 14px; }
+    .topbar { padding: 8px 12px; }
+    .decision-card {
+      grid-template-columns: 1fr;
+      grid-template-areas: "title" "desc" "controls" "meta";
+    }
+  }
+
+  /* ===== Print ===== */
+  @media print {
+    body { background: #fff; font-size: 11pt; }
+    .topbar, .sidenav, .controls, .export-actions, .toast { display: none !important; }
+    .layout { display: block; max-width: 100%; }
+    main { padding: 0; }
+    section { page-break-inside: avoid; margin-bottom: 24px; }
+    .figure svg, .constraint-card, .phase-block { break-inside: avoid; box-shadow: none; }
+    .figure { border: 1px solid #999; }
+    a { color: #000; text-decoration: none; }
+    h2 { page-break-after: avoid; }
+  }
+
+  /* ===== Reduced motion ===== */
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+
+  /* ===== Utility ===== */
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .row-2 { grid-template-columns: 1fr; } }
+  .meta-inline { display: inline-flex; gap: 6px; align-items: center; }
+  .small-muted { font-size: 12px; color: var(--muted); }
+  .kbd {
+    font-family: "SF Mono", monospace;
+    font-size: 12px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 6px;
+  }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ===== Top toolbar (sticky) ===== -->
+<div class="topbar">
+  <h1>G2 Run HUD ロードマップ <span class="ver">v0.5+ レビュー</span></h1>
+  <div class="topbar-spacer"></div>
+  <div class="filter-group">
+    <label>フェーズ</label>
+    <select id="filter-phase">
+      <option value="all">すべて</option>
+      <option value="v0.5-spike">v0.5-spike</option>
+      <option value="v0.5">v0.5</option>
+      <option value="v0.6">v0.6</option>
+      <option value="v0.7">v0.7</option>
+      <option value="v0.8">v0.8</option>
+      <option value="v0.9">v0.9</option>
+      <option value="v1.0">v1.0</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>重大度</label>
+    <select id="filter-severity">
+      <option value="all">すべて</option>
+      <option value="blocking">阻害</option>
+      <option value="important">重要</option>
+      <option value="recommend">推奨</option>
+      <option value="info">情報</option>
+      <option value="nogo">不採用</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>カテゴリ</label>
+    <select id="filter-category">
+      <option value="all">すべて</option>
+      <option value="sdk">SDK</option>
+      <option value="hud">グラス UI</option>
+      <option value="phone">スマホ UI</option>
+      <option value="backend">バックエンド</option>
+      <option value="api">外部 API</option>
+      <option value="qa">QA</option>
+    </select>
+  </div>
+  <button class="primary" id="copy-top">📋 プロンプトとしてコピー</button>
+</div>
+
+<!-- ===== Layout ===== -->
+<div class="layout">
+
+<!-- ===== Sidenav ===== -->
+<nav class="sidenav">
+  <ol>
+    <li><a href="#exec"        data-nav>重要判断</a></li>
+    <li><a href="#constraints" data-nav>確定した制約</a></li>
+    <li><a href="#timeline"    data-nav>ロードマップ</a></li>
+    <li><a href="#gonogo"      data-nav>採用 / 不採用</a></li>
+    <li><a href="#hud"         data-nav>HUD 進化</a></li>
+    <li><a href="#arch"        data-nav>アーキテクチャ</a></li>
+    <li><a href="#export"      data-nav>判断のエクスポート</a></li>
+  </ol>
+  <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted);">
+    本書は <a href="https://claude.com/blog/using-claude-code-the-unreasonable-effectiveness-of-html" style="color: var(--info);">Anthropic「HTML で受け取れ」</a> 設計原則に基づいた、判断を返すための HTML です。
+  </div>
+</nav>
+
+<!-- ===== Main ===== -->
+<main>
+
+<!-- ============================== -->
+<!-- 0. SSOT 同期バナー（2026-05-27 追記） -->
+<!-- ============================== -->
+<section style="background: var(--recommend-bg); border: 1px solid var(--recommend); border-radius: 8px; padding: 14px 18px; margin-bottom: 24px;">
+  <h3 style="margin: 0 0 6px 0; color: var(--recommend); font-size: 15px;">✅ 2026-05-27 旦那様判断確定済み（SSOT 同期）</h3>
+  <p style="margin: 4px 0; font-size: 13px;">
+    本 HTML は判断回収済みです。現在の正式記録は <code class="kbd">docs/v0.5/decision-log.md</code>（SSOT）です。
+    旦那様判断による変更（NO-GO リスト承認 → 保留化、シューズ管理 → 却下確定）も反映済み。
+  </p>
+  <p style="margin: 4px 0; font-size: 12px; color: var(--muted);">
+    関連: <code class="kbd">docs/v0.5/watch-list.md</code>（観察リスト）/ <code class="kbd">docs/v0.5/spike-plan.md</code>（spike 詳細）/ <code class="kbd">docs/v0.5/implementation-plan.md</code>（v0.5 本実装）
+  </p>
+</section>
+
+<!-- ============================== -->
+<!-- 1. Executive Decision -->
+<!-- ============================== -->
+<section id="exec">
+  <h2>重要判断 <span class="lead">─ 今日決めること（5 件）</span></h2>
+  <p class="intro">
+    Codex 批判レビューを踏まえた最重要 5 件です。<strong>採用 / 却下 / 保留</strong> のいずれかで判断を返してください。
+    選択は自動でブラウザに保存されます（ページを閉じても残ります）。
+  </p>
+
+  <div class="decision-card" data-id="exec.spike" data-phase="v0.5-spike" data-severity="recommend" data-category="sdk">
+    <div class="dc-title">
+      <span>v0.5-spike (1 週) を実施</span>
+      <span class="badge phase">v0.5-spike</span>
+      <span class="badge recommend">推奨</span>
+    </div>
+    <div class="dc-desc">2×2 tile latency / toolkit ビルド検証 / G2 マイク PCM ペアリングを実機で測定。これが判断の起点になる。</div>
+    <div class="controls"><div class="seg" data-control></div></div>
+    <div class="dc-meta">
+      <span>所要: 1 週</span>
+      <span>リスク: 低</span>
+      <input type="text" placeholder="メモ（任意）" data-note>
+    </div>
+  </div>
+
+  <div class="decision-card" data-id="exec.image-partial" data-phase="v0.6" data-severity="important" data-category="hud">
+    <div class="dc-title">
+      <span>v0.6 image HUD 採用範囲を「低頻度のみ」に固定</span>
+      <span class="badge phase">v0.6</span>
+      <span class="badge important">重要</span>
+    </div>
+    <div class="dc-desc">splash / lap 完了時 sparkline / 5 秒更新 minimap / 公式アイコンに限定。常時更新は禁止。spike の latency 計測結果で範囲確定。</div>
+    <div class="controls"><div class="seg" data-control></div></div>
+    <div class="dc-meta">
+      <span>所要: 3 週</span>
+      <span>依存: spike 結果</span>
+      <input type="text" placeholder="メモ（任意）" data-note>
+    </div>
+  </div>
+
+  <div class="decision-card" data-id="exec.react-defer" data-phase="v0.7" data-severity="recommend" data-category="phone">
+    <div class="dc-title">
+      <span>React 化を v0.7 まで延期（glasses は plain TS 維持）</span>
+      <span class="badge phase">v0.7</span>
+      <span class="badge recommend">推奨</span>
+    </div>
+    <div class="dc-desc">v0.5 で main.ts 701 行を破壊的に書き換えるリスクを回避。phone UI 拡充タイミングで React を導入。</div>
+    <div class="controls"><div class="seg" data-control></div></div>
+    <div class="dc-meta">
+      <span>影響: main.ts / phone UI</span>
+      <input type="text" placeholder="メモ（任意）" data-note>
+    </div>
+  </div>
+
+  <div class="decision-card" data-id="exec.hr-remove" data-phase="v0.5" data-severity="blocking" data-category="hud">
+    <div class="dc-title">
+      <span>v0.5 で内蔵 HR zone UI を完全削除</span>
+      <span class="badge phase">v0.5</span>
+      <span class="badge blocking">阻害</span>
+    </div>
+    <div class="dc-desc">SDK に HR API がないため、現状の <code class="kbd">'-- bpm'</code> 表示は嘘 UI。v0.9 で BLE 外部センサー対応に切り替える。</div>
+    <div class="controls"><div class="seg" data-control></div></div>
+    <div class="dc-meta">
+      <span>影響: render.ts:89-91, bridge.ts:textHr</span>
+      <input type="text" placeholder="メモ（任意）" data-note>
+    </div>
+  </div>
+
+  <div class="decision-card" data-id="exec.nogo-approval" data-phase="all" data-severity="nogo" data-category="api">
+    <div class="dc-title">
+      <span>不採用リストの承認 ─ <strong style="color: var(--important);">旦那様判断により「保留扱い」へ変更</strong></span>
+      <span class="badge important">保留</span>
+    </div>
+    <div class="dc-desc">
+      旦那様メモ「公式対応状況を見てまた別の機会に」により、NO-GO として確定せず、SDK / Hub の進化次第で復活させる<strong>観察リスト</strong>として管理。
+      対象機能（G2 speaker TTS / Spotify / Apple Music / Turn-by-turn ナビ / 通知転送 / ソーシャル）は v0.5〜v1.0 では着手しないが、Even Hub SDK のリリースノートを節目ごとに確認。
+      詳細は <code class="kbd">docs/v0.5/watch-list.md</code> 参照。
+    </div>
+    <div class="controls"><div class="seg" data-control></div></div>
+    <div class="dc-meta">
+      <span>判断: 却下 = 保留化（観察リストへ移動）</span>
+      <input type="text" placeholder="メモ（任意）" data-note>
+    </div>
+  </div>
+
+  <h3 style="margin-top: 32px;">判断 UI イメージ</h3>
+  <figure class="figure">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 520" role="img" aria-labelledby="decision-title decision-desc">
+  <title id="decision-title">Decision interaction UI example</title>
+  <desc id="decision-desc">Example UI for choosing Keep, Drop, or Defer and copying the result as a prompt.</desc>
+  <style>
+    .bg{fill:#F3F3F3}.panel{fill:#fff;stroke:#D8D4CC;stroke-width:2}.card{fill:#FAFAF7;stroke:#E5E0D4;stroke-width:2}.text{fill:#252525;font-family:Arial,Helvetica,sans-serif}.muted{fill:#666}.label{font-size:18px;font-weight:700}.small{font-size:13px}.tiny{font-size:11px}.keep{fill:#2F7D4F}.drop{fill:#B42318}.defer{fill:#9A6A00}.btn{stroke:#D8D4CC;stroke-width:2}.btnText{font-size:12px;font-weight:700}.copy{fill:#252525}.copyText{fill:#fff;font-size:13px;font-weight:700}.shadow{filter:drop-shadow(0 2px 3px rgba(0,0,0,.08))}
+    @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+    @media print{.shadow{filter:none}.bg{fill:#fff}.keep,.drop,.defer,.copy{fill:#252525}.card,.panel{fill:#fff}}
+  </style>
+  <rect class="bg" width="980" height="520"/>
+  <rect class="panel shadow" x="32" y="28" width="916" height="464" rx="8"/>
+  <text class="text label" x="64" y="70">判断を返す UI: 採用 / 却下 / 保留 → プロンプトとしてコピー</text>
+  <text class="text muted small" x="64" y="96">レビュー結果を画面上で構造化し、そのまま Claude / Codex に戻せる形にする。</text>
+  <g transform="translate(64 134)">
+    <rect class="card" x="0" y="0" width="520" height="88" rx="8"/>
+    <text class="text small" x="20" y="28">v0.6 画像 HUD: ペース sparkline</text>
+    <text class="text tiny muted" x="20" y="52">ラップ完了時のみ更新。常時アニメーションはしない。</text>
+    <rect class="btn" x="314" y="18" width="58" height="34" rx="6" fill="#EAF4EF"/><text class="keep btnText" x="326" y="40">採用</text>
+    <rect class="btn" x="378" y="18" width="58" height="34" rx="6" fill="#fff"/><text class="drop btnText" x="392" y="40">却下</text>
+    <rect class="btn" x="442" y="18" width="58" height="34" rx="6" fill="#fff"/><text class="defer btnText" x="454" y="40">保留</text>
+    <rect class="card" x="0" y="110" width="520" height="88" rx="8"/>
+    <text class="text small" x="20" y="138">v0.9 BLE 心拍センサー</text>
+    <text class="text tiny muted" x="20" y="162">内蔵 HR ではなく外部センサー。価値は高いが後半。</text>
+    <rect class="btn" x="314" y="128" width="58" height="34" rx="6" fill="#fff"/><text class="keep btnText" x="326" y="150">採用</text>
+    <rect class="btn" x="378" y="128" width="58" height="34" rx="6" fill="#fff"/><text class="drop btnText" x="392" y="150">却下</text>
+    <rect class="btn" x="442" y="128" width="58" height="34" rx="6" fill="#FFF7E0"/><text class="defer btnText" x="454" y="150">保留</text>
+    <rect class="card" x="0" y="220" width="520" height="88" rx="8"/>
+    <text class="text small" x="20" y="248">G2 スピーカー音声出力</text>
+    <text class="text tiny muted" x="20" y="272">SDK に音声出力 API なし。スマホスピーカーへ置換。</text>
+    <rect class="btn" x="314" y="238" width="58" height="34" rx="6" fill="#fff"/><text class="keep btnText" x="326" y="260">採用</text>
+    <rect class="btn" x="378" y="238" width="58" height="34" rx="6" fill="#FCEBE8"/><text class="drop btnText" x="392" y="260">却下</text>
+    <rect class="btn" x="442" y="238" width="58" height="34" rx="6" fill="#fff"/><text class="defer btnText" x="454" y="260">保留</text>
+  </g>
+  <g transform="translate(640 134)">
+    <rect class="card" x="0" y="0" width="244" height="250" rx="8"/>
+    <text class="text small" x="18" y="32">エクスポート例</text>
+    <text class="text tiny muted" x="18" y="62">{</text>
+    <text class="text tiny muted" x="30" y="84">"v0.6.sparkline": "keep",</text>
+    <text class="text tiny muted" x="30" y="106">"v0.9.bleHr": "defer",</text>
+    <text class="text tiny muted" x="30" y="128">"g2SpeakerTts": "drop"</text>
+    <text class="text tiny muted" x="18" y="150">}</text>
+    <rect class="copy" x="18" y="184" width="208" height="42" rx="6"/>
+    <text class="copyText" x="46" y="211">プロンプトとしてコピー</text>
+  </g>
+  <text class="text muted tiny" x="64" y="468">実装判断: 選択状態はブラウザに保存。コピー内容には判断、差分、未決質問、Codex への次アクションを含める。</text>
+</svg>
+    <figcaption>判断はページ上の各「採用 / 却下 / 保留」で行い、最下部「判断のエクスポート」からまとめてコピーします。</figcaption>
+  </figure>
+</section>
+
+<!-- ============================== -->
+<!-- 2. Confirmed Constraints -->
+<!-- ============================== -->
+<section id="constraints">
+  <h2>確定した制約 <span class="lead">─ SDK 実物で検証済</span></h2>
+  <p class="intro">
+    Codex 批判レビューの指摘を <code class="kbd">node_modules/@evenrealities/even_hub_sdk/dist/index.d.ts</code> 等で全件検証済み。
+    これらは <strong>動かす前提条件</strong>。設計はここから出発する。
+  </p>
+
+  <h3>主要制約マップ</h3>
+  <figure class="figure">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 520" role="img" aria-labelledby="sdk-tile-title sdk-tile-desc">
+  <title id="sdk-tile-title">SDK image container constraint</title>
+  <desc id="sdk-tile-desc">One full G2 screen is composed from four 288 by 144 image containers arranged as a 2 by 2 tile grid.</desc>
+  <style>
+    .bg{fill:#F3F3F3}.panel{fill:#fff;stroke:#D8D4CC;stroke-width:2}.text{fill:#252525;font-family:Arial,Helvetica,sans-serif}.muted{fill:#666}.mono{font-family:"Courier New",monospace}.ok{fill:#2F7D4F}.warn{fill:#9A6A00}.bad{fill:#B42318}.blue{fill:#246B9F}.tile{fill:#FAFAF7;stroke:#252525;stroke-width:2}.grid{stroke:#D8D4CC;stroke-width:2}.dash{stroke-dasharray:8 6}.label{font-size:18px;font-weight:700}.small{font-size:14px}.tiny{font-size:12px}.shadow{filter:drop-shadow(0 2px 3px rgba(0,0,0,.08))}
+    @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+    @media print{.shadow{filter:none}.bg{fill:#fff}.panel{stroke:#999}.blue,.ok,.warn,.bad{fill:#252525}}
+  </style>
+  <rect class="bg" width="920" height="520"/>
+  <rect class="panel shadow" x="32" y="28" width="856" height="464" rx="8"/>
+  <text class="text label" x="64" y="70">SDK image container 制約</text>
+  <text class="text muted small" x="64" y="98">1 container は最大 288×144。max_count 4 を 2×2 tile として使うと 576×288 全画面を構成できる。</text>
+  <g transform="translate(86 142)">
+    <rect class="tile" x="0" y="0" width="576" height="288" rx="4"/>
+    <line class="grid" x1="288" y1="0" x2="288" y2="288"/>
+    <line class="grid" x1="0" y1="144" x2="576" y2="144"/>
+    <rect x="0" y="0" width="288" height="144" fill="#EAF4EF" opacity=".9"/>
+    <rect x="288" y="0" width="288" height="144" fill="#EEF4FA" opacity=".9"/>
+    <rect x="0" y="144" width="288" height="144" fill="#FFF7E0" opacity=".9"/>
+    <rect x="288" y="144" width="288" height="144" fill="#F1F1F1" opacity=".9"/>
+    <text class="text mono small" x="118" y="66">tile 1</text>
+    <text class="text mono tiny" x="105" y="90">288×144</text>
+    <text class="text mono small" x="406" y="66">tile 2</text>
+    <text class="text mono tiny" x="393" y="90">288×144</text>
+    <text class="text mono small" x="118" y="210">tile 3</text>
+    <text class="text mono tiny" x="105" y="234">288×144</text>
+    <text class="text mono small" x="406" y="210">tile 4</text>
+    <text class="text mono tiny" x="393" y="234">288×144</text>
+    <text class="text label" x="226" y="326">G2 full screen 576×288</text>
+  </g>
+  <g transform="translate(700 156)">
+    <rect class="panel" x="0" y="0" width="134" height="76" rx="6"/>
+    <text class="text ok label" x="20" y="32">採用</text>
+    <text class="text small" x="20" y="56">2×2 tile</text>
+    <rect class="panel" x="0" y="104" width="134" height="92" rx="6"/>
+    <text class="text bad label" x="20" y="136">不採用</text>
+    <text class="text small" x="20" y="160">576×288</text>
+    <text class="text small" x="20" y="180">1 枚 image</text>
+  </g>
+  <path d="M662 286 C684 286 684 200 700 196" fill="none" stroke="#2F7D4F" stroke-width="3"/>
+  <path d="M662 286 C684 286 684 318 700 318" fill="none" stroke="#B42318" stroke-width="3" class="dash"/>
+  <text class="text muted tiny" x="64" y="462">実装判断: v0.5-spike で 2×2 tile 実機表示と p95 latency を先に測る。v0.6 では低頻度更新のみ image 採用。</text>
+</svg>
+    <figcaption>576×288 を 1 枚の画像で送るのは不採用。288×144 × 4 タイルなら数学的に合法。実機での遅延計測が必要。</figcaption>
+  </figure>
+
+  <div class="constraint-grid">
+    <div class="constraint-card blocking">
+      <h4><span class="badge blocking">阻害</span> Image container 288×144 max</h4>
+      <p>SDK PB の width / height 範囲: <code class="kbd">width 20-288</code>, <code class="kbd">height 20-144</code>, max_count 4。</p>
+      <div class="src">node_modules/@evenrealities/even_hub_sdk/dist/index.d.ts:393</div>
+    </div>
+
+    <div class="constraint-card blocking">
+      <h4><span class="badge blocking">阻害</span> HR API なし</h4>
+      <p>SDK 全 export を grep してもハートレート関連は一切無し。内蔵 HR zone UI は嘘になるので削除必須。</p>
+      <div class="src">grep -i "HeartRate\|heartRate\|hr" → no match</div>
+    </div>
+
+    <div class="constraint-card important">
+      <h4><span class="badge important">重要</span> Audio output なし / input あり</h4>
+      <p>G2 スピーカー / 骨伝導への音声出力 API は無い。一方 <code class="kbd">AudioEventPayload</code>（マイク PCM stream）は存在 → <strong>音声コマンドは実現可能</strong>。</p>
+      <div class="src">index.d.ts:860 AudioEventPayload</div>
+    </div>
+
+    <div class="constraint-card info">
+      <h4><span class="badge info">情報</span> Companion app の正式枠なし</h4>
+      <p>Hub プラグインは単一 WebView エントリーポイント。「コンパニオンアプリ」とは呼ばず、その WebView をスマホ UI として活用する。</p>
+      <div class="src">app.json: single entrypoint</div>
+    </div>
+
+    <div class="constraint-card important">
+      <h4><span class="badge important">重要</span> Locked-phone QA</h4>
+      <p>Hub 審査で phone locked / backgrounded での挙動が見られる。GPS 中断・Wake Lock の補強が必須。</p>
+      <div class="src">docs/HANDOFF.md:146 ─ 既知の弱点</div>
+    </div>
+
+    <div class="constraint-card important">
+      <h4><span class="badge important">重要</span> upng-js が toolkit deps に未記載</h4>
+      <p>even-toolkit の <code class="kbd">glasses/png-utils.ts</code> は upng-js を import するが、package.json には書かれていない。別途 install 必須。</p>
+      <div class="src">toolkit package.json deps: react-is, recharts のみ</div>
+    </div>
+  </div>
+
+  <h3>HR API 不在の影響</h3>
+  <figure class="figure">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 500" role="img" aria-labelledby="hr-title hr-desc">
+  <title id="hr-title">No built-in HR API explanation</title>
+  <desc id="hr-desc">Diagram explaining that G2 has no heart rate API, so built-in HR zone UI must be removed and replaced by external BLE sensor support later.</desc>
+  <style>
+    .bg{fill:#F3F3F3}.panel{fill:#fff;stroke:#D8D4CC;stroke-width:2}.box{fill:#FAFAF7;stroke:#252525;stroke-width:2}.bad{fill:#FCEBE8;stroke:#B42318;stroke-width:2}.good{fill:#EAF4EF;stroke:#2F7D4F;stroke-width:2}.wait{fill:#FFF7E0;stroke:#9A6A00;stroke-width:2}.text{fill:#252525;font-family:Arial,Helvetica,sans-serif}.muted{fill:#666}.red{fill:#B42318}.green{fill:#2F7D4F}.amber{fill:#9A6A00}.label{font-size:18px;font-weight:700}.small{font-size:13px}.tiny{font-size:11px}.arrow{stroke:#252525;stroke-width:2;fill:none;marker-end:url(#arrow)}.cross{stroke:#B42318;stroke-width:5;stroke-linecap:round}.shadow{filter:drop-shadow(0 2px 3px rgba(0,0,0,.08))}
+    @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+    @media print{.shadow{filter:none}.bg{fill:#fff}.bad,.good,.wait,.box{fill:#fff;stroke:#252525}.red,.green,.amber{fill:#252525}.cross{stroke:#252525}}
+  </style>
+  <defs>
+    <marker id="arrow-hr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#252525"/></marker>
+  </defs>
+  <rect class="bg" width="940" height="500"/>
+  <rect class="panel shadow" x="32" y="28" width="876" height="432" rx="8"/>
+  <text class="text label" x="64" y="70">HR API 不在: 内蔵 HR zone は削除</text>
+  <text class="text muted small" x="64" y="96">心拍データの取得経路がない状態で zone UI を出すと、実測に見える嘘UIになる。</text>
+  <g transform="translate(76 144)">
+    <rect class="box" x="0" y="40" width="170" height="130" rx="8"/>
+    <text class="text label" x="42" y="78">G2 SDK</text>
+    <text class="text small" x="28" y="112">音声入力</text>
+    <text class="text small" x="28" y="138">IMU / 電池</text>
+    <text class="red small" x="28" y="164">HR API なし</text>
+    <rect class="bad" x="260" y="0" width="210" height="100" rx="8"/>
+    <text class="red label" x="292" y="38">不採用</text>
+    <text class="text small" x="292" y="66">内蔵 HR ゾーン</text>
+    <line class="cross" x1="278" y1="18" x2="452" y2="82"/>
+    <line class="cross" x1="452" y1="18" x2="278" y2="82"/>
+    <rect class="good" x="260" y="150" width="210" height="100" rx="8"/>
+    <text class="green label" x="292" y="188">後で採用</text>
+    <text class="text small" x="292" y="216">BLE HR センサー</text>
+    <text class="text tiny muted" x="292" y="238">v0.9 以降</text>
+    <rect class="wait" x="560" y="76" width="210" height="120" rx="8"/>
+    <text class="amber label" x="592" y="114">v0.5 の対応</text>
+    <text class="text small" x="592" y="144">HR ゾーン削除</text>
+    <text class="text small" x="592" y="170">UI 文言も削除</text>
+    <path d="M170 104 L260 54" fill="none" stroke="#252525" stroke-width="2" marker-end="url(#arrow-hr)"/>
+    <path d="M170 116 L260 200" fill="none" stroke="#252525" stroke-width="2" marker-end="url(#arrow-hr)"/>
+    <path d="M470 200 L560 150" fill="none" stroke="#252525" stroke-width="2" marker-end="url(#arrow-hr)"/>
+  </g>
+  <text class="text muted tiny" x="64" y="426">レビュー判断: v0.5 で内蔵 HR 表示を完全削除。v0.9 で Web Bluetooth HR センサーを別機能として審査する。</text>
+</svg>
+    <figcaption>SDK に HR データ経路がない以上、内蔵 HR zone は嘘 UI。v0.9 で BLE 外部センサー対応に切り替える。</figcaption>
+  </figure>
+</section>
+
+<!-- ============================== -->
+<!-- 3. Roadmap Timeline -->
+<!-- ============================== -->
+<section id="timeline">
+  <h2>ロードマップ <span class="lead">─ v0.5-spike → v1.0 / 約 6 ヶ月</span></h2>
+  <p class="intro">
+    副業ペース週 10〜15h 想定。<strong>検証 → 基盤 → image → phone UI → workout → 外部連携 → AI</strong> の順に階段を上がる。
+    各フェーズの機能に <strong>採用 / 却下 / 保留</strong> を返してください。
+  </p>
+
+  <figure class="figure">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 520" role="img" aria-labelledby="phase-title phase-desc">
+  <title id="phase-title">G2 Run HUD phase timeline</title>
+  <desc id="phase-desc">A six month roadmap from v0.5 spike through v1.0, showing phase duration and major deliverables.</desc>
+  <style>
+    .bg{fill:#F3F3F3}.panel{fill:#fff;stroke:#D8D4CC;stroke-width:2}.text{fill:#252525;font-family:Arial,Helvetica,sans-serif}.muted{fill:#666}.axis{stroke:#D8D4CC;stroke-width:2}.tick{stroke:#E8E4DC;stroke-width:1}.bar{rx:6}.spike{fill:#246B9F}.base{fill:#2F7D4F}.image{fill:#4C7F89}.phone{fill:#7A5FA8}.workout{fill:#9A6A00}.integrate{fill:#8C4E32}.ai{fill:#B42318}.label{font-size:18px;font-weight:700}.small{font-size:13px}.tiny{font-size:11px}.white{fill:#fff}.shadow{filter:drop-shadow(0 2px 3px rgba(0,0,0,.08))}
+    @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+    @media print{.shadow{filter:none}.bg{fill:#fff}.spike,.base,.image,.phone,.workout,.integrate,.ai{fill:#555}.white{fill:#fff}}
+  </style>
+  <rect class="bg" width="1040" height="520"/>
+  <rect class="panel shadow" x="32" y="28" width="976" height="456" rx="8"/>
+  <text class="text label" x="64" y="70">フェーズタイムライン: v0.5-spike → v1.0</text>
+  <text class="text muted small" x="64" y="96">副業ペース週10〜15h想定。検証を先に置き、低リスクな基盤から画像 HUD / スマホ UI / 外部連携へ進む。</text>
+  <g transform="translate(190 138)">
+    <line class="axis" x1="0" y1="0" x2="760" y2="0"/>
+    <g class="text tiny">
+      <text x="0" y="-16">M0</text><text x="126" y="-16">M1</text><text x="252" y="-16">M2</text><text x="378" y="-16">M3</text><text x="504" y="-16">M4</text><text x="630" y="-16">M5</text><text x="756" y="-16">M6</text>
+    </g>
+    <g>
+      <line class="tick" x1="0" y1="0" x2="0" y2="290"/><line class="tick" x1="126" y1="0" x2="126" y2="290"/><line class="tick" x1="252" y1="0" x2="252" y2="290"/>
+      <line class="tick" x1="378" y1="0" x2="378" y2="290"/><line class="tick" x1="504" y1="0" x2="504" y2="290"/><line class="tick" x1="630" y1="0" x2="630" y2="290"/><line class="tick" x1="760" y1="0" x2="760" y2="290"/>
+    </g>
+    <g transform="translate(0 24)">
+      <text class="text small" x="-126" y="22">v0.5-spike</text>
+      <rect class="bar spike" x="0" y="0" width="32" height="30"/>
+      <text class="white tiny" x="6" y="20">1週</text>
+      <text class="text muted tiny" x="42" y="20">tile 検証 / latency 計測 / ビルド / マイク</text>
+    </g>
+    <g transform="translate(32 68)">
+      <text class="text small" x="-126" y="22">v0.5</text>
+      <rect class="bar base" x="0" y="0" width="64" height="30"/>
+      <text class="white tiny" x="18" y="20">2週</text>
+      <text class="text muted tiny" x="74" y="20">描画抽象 / 設定 / GPX / HR ゾーン削除</text>
+    </g>
+    <g transform="translate(96 112)">
+      <text class="text small" x="-126" y="22">v0.6</text>
+      <rect class="bar image" x="0" y="0" width="96" height="30"/>
+      <text class="white tiny" x="34" y="20">3週</text>
+      <text class="text muted tiny" x="106" y="20">スプラッシュ / sparkline / ミニマップ / アイコン</text>
+    </g>
+    <g transform="translate(192 156)">
+      <text class="text small" x="-126" y="22">v0.7</text>
+      <rect class="bar phone" x="0" y="0" width="126" height="30"/>
+      <text class="white tiny" x="38" y="20">1ヶ月</text>
+      <text class="text muted tiny" x="136" y="20">React スマホ UI / IndexedDB / 多画面</text>
+    </g>
+    <g transform="translate(318 200)">
+      <text class="text small" x="-126" y="22">v0.8</text>
+      <rect class="bar workout" x="0" y="0" width="126" height="30"/>
+      <text class="white tiny" x="38" y="20">1ヶ月</text>
+      <text class="text muted tiny" x="136" y="20">インターバル / シューズ管理</text>
+    </g>
+    <g transform="translate(444 244)">
+      <text class="text small" x="-126" y="22">v0.9</text>
+      <rect class="bar integrate" x="0" y="0" width="126" height="30"/>
+      <text class="white tiny" x="38" y="20">1ヶ月</text>
+      <text class="text muted tiny" x="136" y="20">BLE HR / Strava / 音声コマンド</text>
+    </g>
+    <g transform="translate(570 288)">
+      <text class="text small" x="-126" y="22">v1.0</text>
+      <rect class="bar ai" x="0" y="0" width="126" height="30"/>
+      <text class="white tiny" x="38" y="20">1ヶ月</text>
+      <text class="text muted tiny" x="136" y="20">AI コーチ / 音声 fb / 仕上げ</text>
+    </g>
+  </g>
+  <text class="text muted tiny" x="64" y="462">判断ポイント: v0.5-spike の測定結果が悪ければ、v0.6 の画像 HUD はスプラッシュ / ラップサマリなど低頻度用途へ縮小する。</text>
+</svg>
+    <figcaption>フェーズ間の依存と所要を 1 枚で。各フェーズの詳細は下のカードに。</figcaption>
+  </figure>
+
+  <!-- Phase blocks -->
+  <div class="phase-block" data-phase="v0.5-spike">
+    <div class="phase-head">
+      <span class="phase-name">v0.5-spike</span>
+      <span class="badge phase">1 週</span>
+      <span class="badge info">検証</span>
+    </div>
+    <div class="phase-goal">image pipeline / toolkit ビルド / G2 mic を実機で測定。これが以降の判断起点。</div>
+    <div class="decision-card" data-id="v0.5-spike.tile" data-phase="v0.5-spike" data-severity="blocking" data-category="sdk">
+      <div class="dc-title"><span>2×2 tile で 576×288 image 実機表示</span><span class="badge blocking">阻害</span></div>
+      <div class="dc-desc">288×144 × 4 枚で全画面カバーが現実的に動くかを実機で確認。動かないと v0.6 image HUD は全廃。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.5-spike.latency" data-phase="v0.5-spike" data-severity="important" data-category="sdk">
+      <div class="dc-title"><span>image update p95 latency 計測</span><span class="badge important">重要</span></div>
+      <div class="dc-desc">1Hz / 状態変化時のみ / 200ms の 3 パターンで p95 を計測。30 分連続テストで発熱・電池も。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.5-spike.toolkit" data-phase="v0.5-spike" data-severity="important" data-category="backend">
+      <div class="dc-title"><span>even-toolkit + upng-js ビルド検証</span><span class="badge important">重要</span></div>
+      <div class="dc-desc">部分 import で tree-shaking が効くか、upng-js 別 install が必要か、SDK 0.0.10 互換性を確認。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.5-spike.mic" data-phase="v0.5-spike" data-severity="info" data-category="sdk">
+      <div class="dc-title"><span>G2 mic PCM stream ペアリング</span><span class="badge info">情報</span></div>
+      <div class="dc-desc">audioEvent でマイク PCM を受信できるか実機確認。toolkit/stt との接続可能性を見る（v0.9 への投資）。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+  </div>
+
+  <div class="phase-block" data-phase="v0.5">
+    <div class="phase-head">
+      <span class="phase-name">v0.5</span>
+      <span class="badge phase">2 週</span>
+      <span class="badge recommend">text HUD 改善 + 基盤</span>
+    </div>
+    <div class="phase-goal">破壊的変更を避けつつ、QA / 履歴 / 設定の基盤を整える。</div>
+    <div class="decision-card" data-id="v0.5.locked-phone" data-phase="v0.5" data-severity="blocking" data-category="qa">
+      <div class="dc-title"><span>Locked-phone QA 強化</span><span class="badge blocking">阻害</span></div>
+      <div class="dc-desc">Wake Lock 強化 + Service Worker + Page Visibility 復帰補正。Hub 審査で必ず見られる。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.5.renderer-port" data-phase="v0.5" data-severity="recommend" data-category="hud">
+      <div class="dc-title"><span>RendererPort 抽象 (text / image 切替)</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">既存 text renderer を維持しつつ、v0.6 で image renderer を experimental として並走できる構造に。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.5.settings" data-phase="v0.5" data-severity="recommend" data-category="phone">
+      <div class="dc-title"><span>Settings UI 新設</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">単位 / 目標ペース / GPS 精度 / mode 切替を phone UI に集約。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.5.gpx-export" data-phase="v0.5" data-severity="recommend" data-category="phone">
+      <div class="dc-title"><span>GPX export</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">走行履歴を GPX 形式でダウンロード。Strava 連携前の手動投稿経路。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.5.hr-remove" data-phase="v0.5" data-severity="blocking" data-category="hud">
+      <div class="dc-title"><span>HR zone UI 削除</span><span class="badge blocking">阻害</span></div>
+      <div class="dc-desc">render.ts / bridge.ts から HR 表示を物理的に削除。v0.9 BLE 対応まで HR は無し。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.5.text-clean" data-phase="v0.5" data-severity="recommend" data-category="hud">
+      <div class="dc-title"><span>text-clean サニタイズ採用</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">even-toolkit/text-clean の cleanForG2 を bridge 入口で適用。emoji / 未サポート Unicode 除去。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+  </div>
+
+  <div class="phase-block" data-phase="v0.6">
+    <div class="phase-head">
+      <span class="phase-name">v0.6</span>
+      <span class="badge phase">3 週</span>
+      <span class="badge important">image 部分採用（低頻度のみ）</span>
+    </div>
+    <div class="phase-goal">spike 結果に基づき、意味のある場所だけ image 表現を導入。常時更新は禁止。</div>
+    <div class="decision-card" data-id="v0.6.splash" data-phase="v0.6" data-severity="recommend" data-category="hud">
+      <div class="dc-title"><span>Splash グラフィカル化</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">起動時 1 枚 image (200×100 中央)。一度しか描かないので低リスク。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.6.sparkline" data-phase="v0.6" data-severity="recommend" data-category="hud">
+      <div class="dc-title"><span>Pace sparkline (lap 完了時更新)</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">直近 5km の pace を折れ線で。lap 確定時のみ再描画 → 更新頻度は実質 5〜10 分に 1 回。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.6.minimap" data-phase="v0.6" data-severity="recommend" data-category="hud">
+      <div class="dc-title"><span>ミニマップ（5 秒更新）</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">GPS 履歴を正規化して canvas 描画。5 秒に 1 回更新で latency 制約クリア。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.6.icons" data-phase="v0.6" data-severity="recommend" data-category="hud">
+      <div class="dc-title"><span>公式 191 アイコン採用</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">Status 54 / Health 12 / Navigate 23 から選定。image 経由で任意サイズ描画（v0.2.3 で諦めた 24×24 制約を回避）。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.6.lap-graph" data-phase="v0.6" data-severity="info" data-category="hud">
+      <div class="dc-title"><span>Lap summary グラフ化</span><span class="badge info">情報</span></div>
+      <div class="dc-desc">既存 LAP リストを棒グラフ表示。lap 完了時のみ更新。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+  </div>
+
+  <div class="phase-block" data-phase="v0.7">
+    <div class="phase-head">
+      <span class="phase-name">v0.7</span>
+      <span class="badge phase">1 ヶ月</span>
+      <span class="badge important">phone UI 拡充 + React 化</span>
+    </div>
+    <div class="phase-goal">phone WebView を React + even-toolkit/web で拡充。走行履歴・チャート・設定を本格化。</div>
+    <div class="decision-card" data-id="v0.7.react" data-phase="v0.7" data-severity="important" data-category="phone">
+      <div class="dc-title"><span>React + Vite + even-toolkit/web 導入</span><span class="badge important">重要</span></div>
+      <div class="dc-desc">phone UI 側だけ React 化。glasses 側は plain TS 維持。useGlasses hook は採用しない。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.7.calendar" data-phase="v0.7" data-severity="recommend" data-category="phone">
+      <div class="dc-title"><span>Calendar / LineChart / Timeline / StatGrid</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">走行履歴を日別ヒートマップで。詳細チャート (pace/hr 時系列) + lap タイムライン + 月間統計。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.7.indexeddb" data-phase="v0.7" data-severity="recommend" data-category="backend">
+      <div class="dc-title"><span>IndexedDB 移行</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">localStorage → IndexedDB。走行データの規模が増えても扱える基盤に。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.7.router" data-phase="v0.7" data-severity="info" data-category="hud">
+      <div class="dc-title"><span>glass-screen-router 多画面化</span><span class="badge info">情報</span></div>
+      <div class="dc-desc">Home / Map / Laps / Splits / Settings を切り替え。Manual lap + GPS quality indicator も追加。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+  </div>
+
+  <div class="phase-block" data-phase="v0.8">
+    <div class="phase-head">
+      <span class="phase-name">v0.8</span>
+      <span class="badge phase">1 ヶ月</span>
+      <span class="badge recommend">Interval workout</span>
+    </div>
+    <div class="phase-goal">トレーニングツール化。phone で組み立て、glass で実行する設計。</div>
+    <div class="decision-card" data-id="v0.8.plan" data-phase="v0.8" data-severity="recommend" data-category="phone">
+      <div class="dc-title"><span>phone でプラン作成 (ScrollPicker)</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">「インターバル 5 set × 1km @ 4'30/km」のようなプランを ScrollPicker で組む UI。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.8.exec" data-phase="v0.8" data-severity="recommend" data-category="hud">
+      <div class="dc-title"><span>glass でプラン実行 (timer-display)</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">現在セグメント / 残秒数 / 次セグメント予告。timer-display + image 低頻度更新。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.8.target-pace" data-phase="v0.8" data-severity="recommend" data-category="hud">
+      <div class="dc-title"><span>Target pace 差分大表示</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">目標とのリアルタイム差分を <code class="kbd">+12s/km</code> のように大きく。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.8.shoes" data-phase="v0.8" data-severity="nogo" data-category="phone">
+      <div class="dc-title"><span>シューズ管理 + 距離追跡 ─ <strong style="color: var(--blocking);">却下確定</strong></span><span class="badge nogo">却下</span></div>
+      <div class="dc-desc">2026-05-27 旦那様判断により v0.8 範囲から除外。再議論が必要な場合は明示提案。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+  </div>
+
+  <div class="phase-block" data-phase="v0.9">
+    <div class="phase-head">
+      <span class="phase-name">v0.9</span>
+      <span class="badge phase">1 ヶ月</span>
+      <span class="badge important">BLE HR + Strava + 音声コマンド</span>
+    </div>
+    <div class="phase-goal">外部センサー・外部 API・新発見の音声入力を統合。</div>
+    <div class="decision-card" data-id="v0.9.ble-hr" data-phase="v0.9" data-severity="important" data-category="phone">
+      <div class="dc-title"><span>Web Bluetooth で外部 HR センサー</span><span class="badge important">重要</span></div>
+      <div class="dc-desc">Polar / Garmin HR strap などを phone で読み、glass に転送。「本物の HR」を初めて表示。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.9.strava" data-phase="v0.9" data-severity="important" data-category="api">
+      <div class="dc-title"><span>Strava OAuth + export (backend proxy)</span><span class="badge important">重要</span></div>
+      <div class="dc-desc">backend proxy (Cloudflare Workers / Vercel Functions) 経由。secret はクライアントに置かない。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.9.voice-cmd" data-phase="v0.9" data-severity="recommend" data-category="sdk">
+      <div class="dc-title"><span>G2 mic 音声コマンド ("pause" / "lap" / "next")</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">SDK の audioEvent (PCM stream) + toolkit/stt で実装。走行中ハンズフリー操作。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v0.9.voice-memo" data-phase="v0.9" data-severity="info" data-category="phone">
+      <div class="dc-title"><span>走行後音声メモ</span><span class="badge info">情報</span></div>
+      <div class="dc-desc">phone mic + STT で走後感想を記録、ChatContainer 風に表示。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+  </div>
+
+  <div class="phase-block" data-phase="v1.0">
+    <div class="phase-head">
+      <span class="phase-name">v1.0</span>
+      <span class="badge phase">1 ヶ月</span>
+      <span class="badge important">AI コーチ + 音声 fb + 仕上げ</span>
+    </div>
+    <div class="phase-goal">「本物の Run HUD」として完成。AI / 音声で深さを出す。</div>
+    <div class="decision-card" data-id="v1.0.ai-coach" data-phase="v1.0" data-severity="important" data-category="api">
+      <div class="dc-title"><span>Claude API backend proxy で走行後 summary</span><span class="badge important">重要</span></div>
+      <div class="dc-desc">走行データを backend に送り、Claude が解析して「今日の走り」「明日の提案」を生成。走行中はやらない。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v1.0.phone-tts" data-phase="v1.0" data-severity="recommend" data-category="phone">
+      <div class="dc-title"><span>phone speaker 音声通知</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">1km 毎・lap 毎に Web Speech API or 録音済みで音声通知。骨伝導には届かないが、phone を携帯する想定で OK。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v1.0.onboarding" data-phase="v1.0" data-severity="recommend" data-category="phone">
+      <div class="dc-title"><span>オンボーディングフロー</span><span class="badge recommend">推奨</span></div>
+      <div class="dc-desc">初回起動時の設定誘導、GPS 許可、目標設定、デモラン。StepIndicator + CTAGroup。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+    <div class="decision-card" data-id="v1.0.submit" data-phase="v1.0" data-severity="info" data-category="qa">
+      <div class="dc-title"><span>Hub Portal submission cleanup</span><span class="badge info">情報</span></div>
+      <div class="dc-desc">Description 更新、icon / screenshot 整備、privacy policy 公開、proper version bump。</div>
+      <div class="controls"><div class="seg" data-control></div></div>
+      <div class="dc-meta"><input type="text" placeholder="メモ" data-note></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== -->
+<!-- 4. GO / NO-GO -->
+<!-- ============================== -->
+<section id="gonogo">
+  <h2>採用 / 不採用 <span class="lead">─ 楽観前提の撤回と置換</span></h2>
+  <p class="intro">
+    Codex 批判レビューで確定した「却下すべき楽観前提」と「採用する現実案」を左右で比較。<br>
+    左列は <strong>原則「却下」確定</strong>。右列は採用時期（採用＝即実装 / 保留＝後回し）を返してください。
+  </p>
+
+  <figure class="figure">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 560" role="img" aria-labelledby="nogo-title nogo-desc">
+  <title id="nogo-title">NO-GO and GO comparison</title>
+  <desc id="nogo-desc">A comparison showing removed optimistic assumptions and their realistic replacements.</desc>
+  <style>
+    .bg{fill:#F3F3F3}.panel{fill:#fff;stroke:#D8D4CC;stroke-width:2}.text{fill:#252525;font-family:Arial,Helvetica,sans-serif}.muted{fill:#666}.bad{fill:#B42318}.badbg{fill:#FCEBE8}.good{fill:#2F7D4F}.goodbg{fill:#EAF4EF}.gray{fill:#666}.row{fill:#FAFAF7;stroke:#E5E0D4}.label{font-size:18px;font-weight:700}.small{font-size:14px}.tiny{font-size:12px}.pill{font-size:12px;font-weight:700}.arrow{stroke:#8C8C8C;stroke-width:2;marker-end:url(#arrow2)}.shadow{filter:drop-shadow(0 2px 3px rgba(0,0,0,.08))}
+    @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+    @media print{.shadow{filter:none}.bg{fill:#fff}.bad,.good,.gray{fill:#252525}.badbg,.goodbg,.row{fill:#fff}}
+  </style>
+  <defs>
+    <marker id="arrow2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#8C8C8C"/></marker>
+  </defs>
+  <rect class="bg" width="980" height="560"/>
+  <rect class="panel shadow" x="32" y="28" width="916" height="500" rx="8"/>
+  <text class="text label" x="64" y="70">NO-GO / GO 比較</text>
+  <text class="text muted small" x="64" y="98">楽観前提を削り、SDK制約に沿った実装へ置き換える。</text>
+  <rect class="badbg" x="64" y="128" width="376" height="42" rx="6"/>
+  <rect class="goodbg" x="540" y="128" width="376" height="42" rx="6"/>
+  <text class="bad label" x="84" y="156">不採用: 採用しない</text>
+  <text class="good label" x="560" y="156">採用: 現実案</text>
+  <g transform="translate(64 188)">
+    <g><rect class="row" x="0" y="0" width="376" height="50" rx="6"/><text class="text small" x="18" y="30">576×288 single image</text>
+      <line class="arrow" x1="396" y1="25" x2="456" y2="25"/>
+      <rect class="row" x="476" y="0" width="376" height="50" rx="6"/><text class="text small" x="494" y="30">288×144 × 4 tile</text></g>
+    <g transform="translate(0 62)"><rect class="row" x="0" y="0" width="376" height="50" rx="6"/><text class="text small" x="18" y="30">200ms image update</text>
+      <line class="arrow" x1="396" y1="25" x2="456" y2="25"/>
+      <rect class="row" x="476" y="0" width="376" height="50" rx="6"/><text class="text small" x="494" y="30">1Hz / 状態変化時のみ</text></g>
+    <g transform="translate(0 124)"><rect class="row" x="0" y="0" width="376" height="50" rx="6"/><text class="text small" x="18" y="30">v0.5 で React 全面移行</text>
+      <line class="arrow" x1="396" y1="25" x2="456" y2="25"/>
+      <rect class="row" x="476" y="0" width="376" height="50" rx="6"/><text class="text small" x="494" y="30">グラスは plain TS 維持 / スマホのみ React</text></g>
+    <g transform="translate(0 186)"><rect class="row" x="0" y="0" width="376" height="50" rx="6"/><text class="text small" x="18" y="30">内蔵 HR ゾーン</text>
+      <line class="arrow" x1="396" y1="25" x2="456" y2="25"/>
+      <rect class="row" x="476" y="0" width="376" height="50" rx="6"/><text class="text small" x="494" y="30">v0.9 以降に BLE 外部 HR</text></g>
+    <g transform="translate(0 248)"><rect class="row" x="0" y="0" width="376" height="50" rx="6"/><text class="text small" x="18" y="30">G2 スピーカー音声出力</text>
+      <line class="arrow" x1="396" y1="25" x2="456" y2="25"/>
+      <rect class="row" x="476" y="0" width="376" height="50" rx="6"/><text class="text small" x="494" y="30">スマホスピーカー通知</text></g>
+    <g transform="translate(0 310)"><rect class="row" x="0" y="0" width="376" height="50" rx="6"/><text class="text small" x="18" y="30">AI コーチを直接 API 呼び出し</text>
+      <line class="arrow" x1="396" y1="25" x2="456" y2="25"/>
+      <rect class="row" x="476" y="0" width="376" height="50" rx="6"/><text class="text small" x="494" y="30">バックエンド proxy / 走行後のみ</text></g>
+  </g>
+  <text class="text muted tiny" x="64" y="504">レビューUIでは、左列は原則 Drop 済みとして固定し、右列の採用時期だけ Keep / Defer で判断させる。</text>
+</svg>
+    <figcaption>左 = SDK 制約で諦めるもの、右 = 採用する現実案。</figcaption>
+  </figure>
+
+  <h3>観察リスト（保留扱い・SDK 進化を見て再評価）</h3>
+  <p style="font-size: 13px; color: var(--important); margin: 8px 0;">
+    旦那様判断「公式対応状況を見てまた別の機会に」により、以下は <strong>完全 NO-GO ではなく保留</strong> として観察リスト管理に変更されました（2026-05-27）。
+    詳細・運用ルールは <code class="kbd">docs/v0.5/watch-list.md</code>。
+  </p>
+  <table class="table">
+    <thead><tr><th>機能</th><th>現状の制約</th><th>復活条件</th><th>分類</th></tr></thead>
+    <tbody>
+      <tr><td>G2 スピーカー音声出力（TTS）</td><td>SDK に音声出力 API なし</td><td>SDK に audio output API が追加</td><td><span class="badge important">保留</span></td></tr>
+      <tr><td>Spotify / Apple Music 制御</td><td>制御 API なし、Bluetooth 経由も実装手段なし</td><td>Hub plugin に音楽制御 capability 追加</td><td><span class="badge important">保留</span></td></tr>
+      <tr><td>ターンバイターン・ナビ</td><td>地図 SDK なし、地図データ統合コスト過大</td><td>Mapbox/Komoot 統合 or Hub 自身が map tile API 提供</td><td><span class="badge important">保留</span></td></tr>
+      <tr><td>通知転送（SMS / LINE）</td><td>SDK がスマホ通知 API を持たず</td><td>SDK にスマホ通知ミラーリング API が追加</td><td><span class="badge important">保留</span></td></tr>
+      <tr><td>ソーシャル機能</td><td>バックエンド運用コスト過大、優先度最下位</td><td>v1.0 達成後の v2 計画フェーズで再検討</td><td><span class="badge important">保留</span></td></tr>
+      <tr><td>内蔵 HR センサー</td><td>SDK に HR API なし</td><td><strong>v0.9 で BLE 外部対応に確定済 → 観察対象外</strong></td><td><span class="badge recommend">v0.9 BLE 代替確定</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================== -->
+<!-- 5. HUD Evolution -->
+<!-- ============================== -->
+<section id="hud">
+  <h2>HUD 進化 <span class="lead">─ v0.4.0 テキスト → v0.6 画像（部分採用）</span></h2>
+  <p class="intro">
+    現状 (v0.4.0) と v0.6 で目指す姿の比較。<strong>レビューポイント: 主指標サイズ、sparkline 配置、HR 削除後の空き領域、5 秒更新ミニマップの価値。</strong>
+  </p>
+
+  <figure class="figure">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 560" role="img" aria-labelledby="hud-title hud-desc">
+  <title id="hud-title">G2 HUD before and after wireframe</title>
+  <desc id="hud-desc">Side by side wireframe comparing the current text HUD and a proposed image HUD for v0.6.</desc>
+  <style>
+    .bg{fill:#F3F3F3}.panel{fill:#fff;stroke:#D8D4CC;stroke-width:2}.screen{fill:#F8F8F5;stroke:#252525;stroke-width:3}.text{fill:#252525;font-family:Arial,Helvetica,sans-serif}.mono{font-family:"Courier New",monospace}.muted{fill:#666}.label{font-size:18px;font-weight:700}.small{font-size:13px}.tiny{font-size:11px}.line{stroke:#252525;stroke-width:3;fill:none}.soft{stroke:#D8D4CC;stroke-width:2}.green{fill:#2F7D4F}.blue{fill:#246B9F}.amber{fill:#9A6A00}.shadow{filter:drop-shadow(0 2px 3px rgba(0,0,0,.08))}
+    @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+    @media print{.shadow{filter:none}.bg{fill:#fff}.green,.blue,.amber{fill:#252525}}
+  </style>
+  <rect class="bg" width="1040" height="560"/>
+  <rect class="panel shadow" x="32" y="28" width="976" height="500" rx="8"/>
+  <text class="text label" x="64" y="70">HUD 進化: v0.4.0 テキスト → v0.6 画像（部分採用）</text>
+  <text class="text muted small" x="64" y="96">v0.6 は全面アニメーションではなく、低頻度で意味がある場所にだけ画像表現を使う。</text>
+  <g transform="translate(70 144)">
+    <text class="text label" x="0" y="-18">現状: v0.4.0 テキスト HUD</text>
+    <rect class="screen" x="0" y="0" width="432" height="216" rx="8"/>
+    <g class="text mono">
+      <text x="28" y="38" font-size="18">RUN        GPS OK</text>
+      <text x="28" y="82" font-size="44">5'42"</text>
+      <text x="282" y="82" font-size="28">PACE</text>
+      <text x="28" y="132" font-size="26">3.18 km</text>
+      <text x="280" y="132" font-size="24">24:10</text>
+      <text x="28" y="178" font-size="22">LAP 3  5'39"</text>
+      <text x="280" y="178" font-size="22">HR --</text>
+    </g>
+    <line class="soft" x1="216" y1="16" x2="216" y2="200"/>
+    <text class="text muted tiny" x="0" y="248">制約: proportional フォント / 空白で位置調整 / アイコン弱い / HR は削除対象</text>
+  </g>
+  <g transform="translate(538 144)">
+    <text class="text label" x="0" y="-18">改善後: v0.6 画像 HUD</text>
+    <rect class="screen" x="0" y="0" width="432" height="216" rx="8"/>
+    <rect x="18" y="18" width="96" height="30" rx="4" fill="#EAF4EF"/>
+    <text class="text small" x="34" y="38">GPS OK</text>
+    <text class="text" x="28" y="112" font-size="62" font-weight="700">5'42"</text>
+    <text class="text small" x="232" y="66">PACE / KM</text>
+    <path class="line blue" d="M232 124 L254 112 L276 118 L298 96 L320 106 L342 82 L364 92 L386 76"/>
+    <line class="soft" x1="232" y1="136" x2="392" y2="136"/>
+    <text class="text small" x="28" y="166">3.18 km</text>
+    <text class="text small" x="142" y="166">24:10</text>
+    <text class="text small" x="256" y="166">LAP 3</text>
+    <rect x="28" y="184" width="120" height="12" rx="6" fill="#D8D4CC"/>
+    <rect x="28" y="184" width="82" height="12" rx="6" class="green"/>
+    <circle cx="386" cy="33" r="12" fill="none" stroke="#252525" stroke-width="3"/>
+    <path d="M386 21 L386 33 L396 38" fill="none" stroke="#252525" stroke-width="3"/>
+    <text class="text muted tiny" x="0" y="248">採用範囲: スプラッシュ / ラップ完了時 sparkline / 5秒更新ミニマップ / 公式アイコン</text>
+  </g>
+  <text class="text muted tiny" x="64" y="494">レビュー観点: 主指標のサイズ、sparkline の有無、HR 削除後の空き領域、5秒更新ミニマップの価値。</text>
+</svg>
+    <figcaption>左: 現状 (v0.4.0 text)、右: v0.6 image 部分採用後のイメージ。</figcaption>
+  </figure>
+</section>
+
+<!-- ============================== -->
+<!-- 6. Architecture -->
+<!-- ============================== -->
+<section id="arch">
+  <h2>アーキテクチャ <span class="lead">─ 責務境界とセキュリティ</span></h2>
+  <p class="intro">
+    <strong>API キーと OAuth Secret はバックエンド proxy に閉じ込める</strong>のが最重要です。
+    G2 とスマホ WebView はユーザー操作・表示・実行に集中させます。
+  </p>
+
+  <figure class="figure">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 560" role="img" aria-labelledby="arch-title arch-desc">
+  <title id="arch-title">G2 Run HUD architecture</title>
+  <desc id="arch-desc">Architecture diagram showing G2, phone WebView, backend proxy, Strava API, and Claude API boundaries.</desc>
+  <style>
+    .bg{fill:#F3F3F3}.panel{fill:#fff;stroke:#D8D4CC;stroke-width:2}.box{fill:#FAFAF7;stroke:#252525;stroke-width:2}.safe{fill:#EAF4EF;stroke:#2F7D4F;stroke-width:2}.warn{fill:#FFF7E0;stroke:#9A6A00;stroke-width:2}.ext{fill:#EEF4FA;stroke:#246B9F;stroke-width:2}.bad{fill:#FCEBE8;stroke:#B42318;stroke-width:2}.text{fill:#252525;font-family:Arial,Helvetica,sans-serif}.muted{fill:#666}.label{font-size:18px;font-weight:700}.small{font-size:13px}.tiny{font-size:11px}.arrow{stroke:#252525;stroke-width:2;fill:none;marker-end:url(#arrow-arch)}.dash{stroke-dasharray:7 6}.shadow{filter:drop-shadow(0 2px 3px rgba(0,0,0,.08))}
+    @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+    @media print{.shadow{filter:none}.bg{fill:#fff}.safe,.warn,.ext,.bad,.box{fill:#fff;stroke:#252525}}
+  </style>
+  <defs>
+    <marker id="arrow-arch" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#252525"/></marker>
+  </defs>
+  <rect class="bg" width="1080" height="560"/>
+  <rect class="panel shadow" x="32" y="28" width="1016" height="500" rx="8"/>
+  <text class="text label" x="64" y="70">アーキテクチャ: G2 ⇔ スマホ WebView ⇔ バックエンド ⇔ Strava / Claude API</text>
+  <text class="text muted small" x="64" y="96">API キーと OAuth secret はバックエンド proxy に閉じ込める。G2 / スマホ側は実行・表示・ユーザー操作に集中する。</text>
+  <g transform="translate(64 150)">
+    <rect class="box" x="0" y="30" width="180" height="190" rx="8"/>
+    <text class="text label" x="28" y="70">G2 グラス</text>
+    <text class="text small" x="28" y="104">HUD 描画</text>
+    <text class="text small" x="28" y="130">タッチ入力</text>
+    <text class="text small" x="28" y="156">マイク PCM</text>
+    <text class="text tiny muted" x="28" y="188">HR API なし</text>
+    <text class="text tiny muted" x="28" y="206">音声出力なし</text>
+    <rect class="safe" x="280" y="0" width="220" height="250" rx="8"/>
+    <text class="text label" x="306" y="40">スマホ WebView</text>
+    <text class="text small" x="306" y="76">Even Hub プラグイン UI</text>
+    <text class="text small" x="306" y="102">GPS / 設定</text>
+    <text class="text small" x="306" y="128">IndexedDB</text>
+    <text class="text small" x="306" y="154">GPX エクスポート</text>
+    <text class="text small" x="306" y="180">スマホスピーカー</text>
+    <text class="text tiny muted" x="306" y="216">v0.7 で React UI</text>
+    <rect class="warn" x="600" y="30" width="190" height="190" rx="8"/>
+    <text class="text label" x="628" y="70">バックエンド proxy</text>
+    <text class="text small" x="628" y="104">OAuth コールバック</text>
+    <text class="text small" x="628" y="130">トークン保管</text>
+    <text class="text small" x="628" y="156">Claude summary</text>
+    <text class="text tiny muted" x="628" y="190">secret はクライアントに置かない</text>
+    <rect class="ext" x="870" y="20" width="120" height="82" rx="8"/>
+    <text class="text label" x="892" y="54">Strava</text>
+    <text class="text tiny muted" x="884" y="78">OAuth / 投稿</text>
+    <rect class="ext" x="870" y="150" width="120" height="82" rx="8"/>
+    <text class="text label" x="892" y="184">Claude</text>
+    <text class="text tiny muted" x="884" y="208">走行後 AI</text>
+    <path class="arrow" d="M180 126 L280 126"/>
+    <path class="arrow" d="M500 126 L600 126"/>
+    <path class="arrow" d="M790 88 L870 66"/>
+    <path class="arrow" d="M790 162 L870 192"/>
+    <path class="arrow dash" d="M280 210 C226 268 108 268 72 222"/>
+    <text class="text tiny muted" x="196" y="114">SDK bridge</text>
+    <text class="text tiny muted" x="520" y="114">HTTPS</text>
+    <text class="text tiny muted" x="808" y="62">OAuth / API</text>
+    <text class="text tiny muted" x="806" y="190">API</text>
+  </g>
+  <rect fill="#FCEBE8" stroke="#B42318" stroke-width="2" x="294" y="472" width="492" height="42" rx="6"/>
+  <text class="text small" x="316" y="498">禁止: スマホ WebView から Strava secret / Claude API key を直接持つ</text>
+</svg>
+    <figcaption>3 つの層 × 2 つの外部 API。Secret はバックエンド proxy（中央黄色）に集中させる。</figcaption>
+  </figure>
+
+  <h3>各層の責務</h3>
+  <table class="table">
+    <thead><tr><th>層</th><th>責務</th><th>持たないもの</th></tr></thead>
+    <tbody>
+      <tr><td><strong>G2 グラス</strong></td><td>HUD 描画 / タッチ入力 / マイク PCM ストリーム</td><td>HR API、スピーカー出力、Secret</td></tr>
+      <tr><td><strong>スマホ WebView</strong></td><td>Even Hub プラグイン UI / GPS / IndexedDB / GPX エクスポート / スマホスピーカー / 設定</td><td>API Secret（クライアントに置くと流出）</td></tr>
+      <tr><td><strong>バックエンド proxy</strong></td><td>OAuth コールバック / トークン保管 / Claude 走行後 summary / Secret 保持</td><td>UI ロジック（薄く保つ）</td></tr>
+      <tr><td><strong>Strava</strong></td><td>OAuth + 投稿受け口</td><td>—</td></tr>
+      <tr><td><strong>Claude</strong></td><td>走行後 summary 生成</td><td>—</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================== -->
+<!-- 7. Decision Export -->
+<!-- ============================== -->
+<section id="export">
+  <h2>判断のエクスポート <span class="lead">─ Claude / Codex に返す</span></h2>
+  <p class="intro">
+    全 採用 / 却下 / 保留 の選択とメモを <strong>JSON / Markdown</strong> で書き出します。
+    ボタンを押すとクリップボードにコピーされ、そのまま Claude Code / Codex に貼り付けて
+    「この判断に従って実装計画を更新して」と指示できます。
+  </p>
+
+  <div class="export-panel">
+    <h3>エクスポートプレビュー</h3>
+    <pre id="export-preview" class="export-preview">// 採用 / 却下 / 保留 を選択するとここに JSON が表示されます</pre>
+
+    <div class="export-actions">
+      <button class="primary" id="copy-bottom">📋 プロンプトとしてコピー（Markdown）</button>
+      <button id="copy-json">📋 JSON 形式でコピー</button>
+      <button id="reset-decisions">🗑 全選択をリセット</button>
+    </div>
+    <p class="small-muted" style="margin-top: 16px;">
+      選択はブラウザに自動保存されるので、ページを閉じても残ります。リセットボタンを押すと消えます。
+    </p>
+  </div>
+</section>
+
+</main>
+</div>
+
+<div class="toast" id="toast">コピーしました</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const STORAGE_KEY = 'g2-roadmap-v0.5-decisions';
+  const decisions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+  // --- 2026-05-27 旦那様判断「却下=保留化」反映により、locked drop 設定を撤廃
+  // 旧コメント: nogo-approval を drop 固定にしていたが、観察リスト方針に変更
+  const LOCKED_DROP = [];
+
+  // --- Initialize segmented controls ---
+  document.querySelectorAll('.decision-card').forEach(card => {
+    const id = card.dataset.id;
+    const segHost = card.querySelector('[data-control]');
+    const isLocked = LOCKED_DROP.includes(id);
+    if (isLocked) {
+      card.dataset.locked = 'true';
+      decisions[id] = decisions[id] || {};
+      decisions[id].choice = 'drop';
+    }
+    const labelMap = { keep: '採用', drop: '却下', defer: '保留' };
+    segHost.innerHTML = ['keep','drop','defer'].map(v => {
+      const isActive = (decisions[id]?.choice === v);
+      return `<button data-value="${v}" data-active="${isActive}">${labelMap[v]}</button>`;
+    }).join('');
+    if (decisions[id]?.choice) card.dataset.choice = decisions[id].choice;
+    segHost.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (isLocked) return;
+        const value = btn.dataset.value;
+        decisions[id] = decisions[id] || {};
+        decisions[id].choice = value;
+        decisions[id].phase = card.dataset.phase;
+        decisions[id].severity = card.dataset.severity;
+        decisions[id].category = card.dataset.category;
+        const titleEl = card.querySelector('.dc-title');
+        decisions[id].title = (titleEl ? titleEl.childNodes[0].textContent.trim() : id);
+        save();
+        card.dataset.choice = value;
+        segHost.querySelectorAll('button').forEach(b => {
+          b.dataset.active = (b.dataset.value === value);
+        });
+        renderExport();
+      });
+    });
+
+    // Note input
+    const noteInput = card.querySelector('[data-note]');
+    if (noteInput) {
+      if (decisions[id]?.note) noteInput.value = decisions[id].note;
+      noteInput.addEventListener('input', () => {
+        decisions[id] = decisions[id] || {};
+        decisions[id].note = noteInput.value;
+        save();
+        renderExport();
+      });
+    }
+  });
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(decisions));
+  }
+
+  function buildMarkdown() {
+    const lines = [];
+    lines.push('# G2 Run HUD v0.5+ ロードマップ判断');
+    lines.push('');
+    lines.push(`日時: ${new Date().toISOString()}`);
+    lines.push('');
+    const grouped = {};
+    Object.entries(decisions).forEach(([id, d]) => {
+      const phase = d.phase || 'misc';
+      grouped[phase] = grouped[phase] || [];
+      grouped[phase].push({ id, ...d });
+    });
+    const phaseOrder = ['v0.5-spike', 'v0.5', 'v0.6', 'v0.7', 'v0.8', 'v0.9', 'v1.0', 'all', 'misc'];
+    phaseOrder.forEach(phase => {
+      const items = grouped[phase];
+      if (!items || !items.length) return;
+      lines.push(`## ${phase}`);
+      items.forEach(item => {
+        const mark = { keep: '✅ 採用', drop: '❌ 却下', defer: '⏳ 保留' }[item.choice] || '❓ 未選択';
+        const sevLabel = { blocking: '阻害', important: '重要', recommend: '推奨', info: '情報', nogo: '不採用' }[item.severity] || item.severity || '-';
+        const catLabel = { sdk: 'SDK', hud: 'グラスUI', phone: 'スマホUI', backend: 'バックエンド', api: '外部API', qa: 'QA' }[item.category] || item.category || '-';
+        lines.push(`- ${mark} **${item.title || item.id}** [${sevLabel} / ${catLabel}]`);
+        if (item.note) lines.push(`  - メモ: ${item.note}`);
+      });
+      lines.push('');
+    });
+    lines.push('---');
+    lines.push('');
+    lines.push('## 次のアクション');
+    lines.push('上記の判断に従って `docs/v0.5/roadmap-review.html` および実装計画を更新してください。');
+    lines.push('採用は v0.5-spike から着手、保留は時期を再評価、却下は今後の提案に含めない方針です。');
+    return lines.join('\n');
+  }
+
+  function buildJSON() {
+    return JSON.stringify({
+      roadmap: 'G2 Run HUD v0.5+',
+      timestamp: new Date().toISOString(),
+      decisions: Object.entries(decisions).map(([id, d]) => ({ id, ...d })),
+      instruction: 'Apply these decisions to update the implementation plan.'
+    }, null, 2);
+  }
+
+  function renderExport() {
+    const pre = document.getElementById('export-preview');
+    const hasAny = Object.keys(decisions).length > 0;
+    pre.textContent = hasAny ? buildJSON() : '// 採用 / 却下 / 保留 を選択するとここに JSON が表示されます';
+  }
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  async function copyText(text, msg) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(msg || 'コピーしました');
+    } catch (e) {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast(msg || 'コピーしました');
+    }
+  }
+
+  document.getElementById('copy-top').addEventListener('click', () => {
+    copyText(buildMarkdown(), '📋 プロンプト（Markdown）をコピーしました');
+  });
+  document.getElementById('copy-bottom').addEventListener('click', () => {
+    copyText(buildMarkdown(), '📋 プロンプト（Markdown）をコピーしました');
+  });
+  document.getElementById('copy-json').addEventListener('click', () => {
+    copyText(buildJSON(), '📋 JSON をコピーしました');
+  });
+  document.getElementById('reset-decisions').addEventListener('click', () => {
+    if (!confirm('すべての選択とメモをリセットしますか？')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  });
+
+  // --- Filters ---
+  function applyFilters() {
+    const phase = document.getElementById('filter-phase').value;
+    const severity = document.getElementById('filter-severity').value;
+    const category = document.getElementById('filter-category').value;
+    document.querySelectorAll('.decision-card').forEach(card => {
+      const matchPhase = phase === 'all' || card.dataset.phase === phase || card.dataset.phase === 'all';
+      const matchSev = severity === 'all' || card.dataset.severity === severity;
+      const matchCat = category === 'all' || card.dataset.category === category;
+      card.classList.toggle('hidden', !(matchPhase && matchSev && matchCat));
+    });
+    document.querySelectorAll('.phase-block').forEach(block => {
+      const visible = block.querySelectorAll('.decision-card:not(.hidden)').length;
+      const phaseMatchOnly = (phase === 'all' || block.dataset.phase === phase);
+      block.classList.toggle('hidden', visible === 0 && !phaseMatchOnly);
+    });
+  }
+  document.getElementById('filter-phase').addEventListener('change', applyFilters);
+  document.getElementById('filter-severity').addEventListener('change', applyFilters);
+  document.getElementById('filter-category').addEventListener('change', applyFilters);
+
+  // --- Sidenav active state on scroll ---
+  const navLinks = document.querySelectorAll('.sidenav a[data-nav]');
+  const sections = Array.from(navLinks).map(a => document.querySelector(a.getAttribute('href')));
+  function updateNavActive() {
+    const scrollPos = window.scrollY + 100;
+    let activeIdx = 0;
+    sections.forEach((sec, i) => {
+      if (sec && sec.offsetTop <= scrollPos) activeIdx = i;
+    });
+    navLinks.forEach((a, i) => {
+      a.classList.toggle('active', i === activeIdx);
+    });
+  }
+  window.addEventListener('scroll', updateNavActive, { passive: true });
+  updateNavActive();
+
+  // --- Initial render ---
+  renderExport();
+})();
+</script>
+
+</body>
+</html>

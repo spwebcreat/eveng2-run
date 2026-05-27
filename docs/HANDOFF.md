@@ -92,11 +92,26 @@ pnpm pack:ehpk
 1. Even Hub の開発者ポータル（https://hub.evenrealities.com）にログイン
 2. `New plugin` → `.ehpk` をアップロード
 3. プラグイン情報を確認（package_id: `com.spwebcreat.g2runhud` / version: `0.4.0`）
-4. テスト配信またはサイドロード URL をスマホで開く
-5. Even Realities アプリ内で起動 → G2 に HUD が表示される
-6. 初回起動時に位置情報の許可ダイアログが出るので「許可」を選ぶ
+4. **Description 欄を最新機能に合わせて更新**（learning P1: version またぎで古い記述が残る事故を防ぐ）
+   - 削除した機能の予告（例: 「v0.9 で BLE HR センサー対応予定」）
+   - 新機能の説明（v0.5 では Settings UI / GPX export / locked-phone 改善）
+   - プライバシー注記（GPS 位置の取り扱い等）
+5. テスト配信またはサイドロード URL をスマホで開く
+6. Even Realities アプリ内で起動 → G2 に HUD が表示される
+7. 初回起動時に位置情報の許可ダイアログが出るので「許可」を選ぶ
 
 その後、スマホを持って歩いてみて HUD の距離が増えれば実 GPS が動いている。
+
+### リリース時 4 箇所同期チェックリスト（learning P1）
+
+毎リリース時に以下 4 箇所が同じバージョンに揃っているか確認：
+
+| 箇所 | 確認内容 |
+|---|---|
+| `app.json` の `version` | "0.5.0" など |
+| `package.json` の `version` | 同上 |
+| `package.json` の `scripts.pack:ehpk` 出力ファイル名 | `g2-run-hud-0.5.0.ehpk` |
+| **Hub Portal Description 欄** | 現バージョンの機能を反映、削除済機能の記述を消す |
 
 ---
 
@@ -187,17 +202,28 @@ even-g2-run/
 │   └── styles/
 │       └── app.css              ← コンパニオン UI 用 dark theme
 └── docs/
-    ├── HANDOFF.md               ← このファイル（旦那様向け）
-    ├── ROADMAP.md               ← AI 用ロードマップ
-    ├── ROADMAP.html             ← 旦那様向けロードマップ（ブラウザ）
-    └── CLAUDE_IMPLEMENTATION_BRIEF.md ← CODEX 補正資料
+    ├── HANDOFF.md                       ← このファイル（旦那様向け、常時参照）
+    ├── REFERENCES.md                    ← Even Hub 公式ドキュメント URL 集
+    ├── design/                          ← Even OS 2.0 公式デザインガイド画像
+    │   └── source/                      ← 元素材（Penpot 等）
+    ├── v0.5/                            ← 現フェーズ
+    │   ├── decision-log.md              ← SSOT
+    │   ├── watch-list.md                ← 観察リスト
+    │   ├── spike-plan.md
+    │   ├── implementation-plan.md
+    │   ├── roadmap-brief.md
+    │   └── roadmap-review.html          ← 旦那様判断レビュー HTML
+    └── archive/                         ← 過去フェーズ（v0.4.0 まで）
+        ├── v0.4.0-roadmap.md
+        ├── v0.4.0-roadmap.html
+        └── v0.4.0-implementation-brief.md
 ```
 
 ---
 
 ## ロードマップ
 
-詳細は `docs/ROADMAP.md` / `docs/ROADMAP.html` 参照。サマリのみ:
+詳細は `docs/archive/v0.4.0-roadmap.md` / `docs/archive/v0.4.0-roadmap.html` 参照。サマリのみ:
 
 - **Phase 1** ✅ MVP（v0.2.6 / 2026-05-24）
 - **Phase 2** ✅ LAP + 履歴 + RUN/WALK + R1 リング（v0.3.0 / 2026-05-26）
