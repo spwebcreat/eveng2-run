@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>G2 Run HUD — 確認資料ハブ</title>
+<meta name="description" content="G2 Run HUD 開発の旦那様向け確認資料カタログ。各 HTML を一覧から辿れる。">
+<style>
+  :root {
+    --bg: #F3F3F3;
+    --surface: #FFFFFF;
+    --surface-soft: #FAFAF7;
+    --text: #252525;
+    --muted: #666666;
+    --border: #D8D4CC;
+    --border-strong: #BFB9AC;
+
+    --blocking: #B42318;
+    --blocking-bg: #FCEBE8;
+    --important: #9A6A00;
+    --important-bg: #FFF7E0;
+    --recommend: #2F7D4F;
+    --recommend-bg: #EAF4EF;
+    --info: #246B9F;
+    --info-bg: #EEF4FA;
+    --no-go: #666666;
+    --no-go-bg: #EFEFEF;
+
+    --shadow: 0 2px 6px rgba(0,0,0,.06);
+    --shadow-strong: 0 4px 14px rgba(0,0,0,.10);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+
+  /* ===== Topbar ===== */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topbar h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .topbar h1 .sub {
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 14px;
+    margin-left: 8px;
+  }
+  .topbar .right {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* ===== Layout ===== */
+  .container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px 24px 80px;
+  }
+
+  .intro {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 32px;
+  }
+  .intro h2 { margin: 0 0 8px; font-size: 16px; }
+  .intro p { margin: 6px 0; color: var(--muted); font-size: 14px; }
+
+  /* ===== Section ===== */
+  .section { margin-bottom: 40px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+  }
+  .section-head h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+  }
+  .section-head .badge-phase {
+    background: var(--info-bg);
+    color: var(--info);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .section-head .desc {
+    color: var(--muted);
+    font-size: 13px;
+    margin-left: auto;
+  }
+
+  /* ===== Card grid ===== */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-strong);
+    border-color: var(--border-strong);
+  }
+  .card.disabled {
+    background: var(--no-go-bg);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  .card.disabled:hover {
+    transform: none;
+    box-shadow: var(--shadow);
+    border-color: var(--border);
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    flex: 1;
+    min-width: 0;
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+  .badge.recommend { background: var(--recommend-bg); color: var(--recommend); }
+  .badge.important { background: var(--important-bg); color: var(--important); }
+  .badge.info      { background: var(--info-bg);      color: var(--info); }
+  .badge.no-go     { background: var(--no-go-bg);     color: var(--no-go); }
+  .badge.blocking  { background: var(--blocking-bg);  color: var(--blocking); }
+
+  .card-desc {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .card-meta .dot { opacity: 0.5; }
+  .card-arrow { font-size: 12px; color: var(--info); margin-left: 4px; }
+
+  /* ===== Empty card ===== */
+  .card.placeholder {
+    background: var(--surface-soft);
+    border-style: dashed;
+    border-color: var(--border-strong);
+    cursor: default;
+  }
+  .card.placeholder:hover {
+    transform: none;
+    box-shadow: var(--shadow);
+    border-color: var(--border-strong);
+  }
+  .card.placeholder .card-title { color: var(--muted); }
+
+  /* ===== Footer ===== */
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 28px 16px;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+  footer code {
+    background: var(--surface);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    font-size: 11px;
+  }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 640px) {
+    .topbar { padding: 10px 16px; }
+    .topbar h1 { font-size: 16px; }
+    .topbar .right { display: none; }
+    .container { padding: 20px 16px 60px; }
+  }
+
+  /* ===== Print ===== */
+  @media print {
+    .topbar { box-shadow: none; }
+    .card { break-inside: avoid; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>G2 Run HUD <span class="sub">確認資料ハブ</span></h1>
+  <div class="right">本番 v0.4.0 / 開発 v0.5+ 準備中</div>
+</div>
+
+<div class="container">
+
+  <div class="intro">
+    <h2>このページについて</h2>
+    <p>旦那様向けの確認資料カタログ。判断・検証・レビュー用の HTML を一覧から辿れます。</p>
+    <p>各カードをクリックすると個別ページが開きます。新しい確認資料は本ファイルに追記して派生させます。</p>
+  </div>
+
+  <!-- ===== 現フェーズ ===== -->
+  <section class="section">
+    <div class="section-head">
+      <h2>現フェーズ</h2>
+      <span class="badge-phase">v0.5+ ロードマップ確定 → spike 検証中</span>
+      <span class="desc">2026-05-27 確定</span>
+    </div>
+
+    <div class="grid">
+
+      <a class="card" href="v0.5/roadmap-review.html">
+        <div class="card-head">
+          <div class="card-title">v0.5+ ロードマップ判断レビュー</div>
+          <span class="badge recommend">判断済</span>
+        </div>
+        <div class="card-desc">採用 30 機能 + 4 メタ判断 / 却下 1 / 保留 1。29 機能 + メタ判断にセグメントコントロールで採用/却下/保留を返す画面。SVG 図版 7 種・Copy as prompt 機能あり。</div>
+        <div class="card-meta">
+          <span>📅 2026-05-27</span>
+          <span class="dot">·</span>
+          <span>SSOT: docs/v0.5/decision-log.md</span>
+        </div>
+      </a>
+
+      <a class="card" href="v0.5/spike-results/summary-for-owner.html">
+        <div class="card-head">
+          <div class="card-title">spike 結果サマリ</div>
+          <span class="badge info">レビュー</span>
+        </div>
+        <div class="card-desc">S1 / S2 / S3 / S4 spike の状態表と、実機 GO/NO-GO 後の v0.5・v0.6・v0.9 分岐ガイド。v0.5 本実装着手判定の根拠もここに集約。</div>
+        <div class="card-meta">
+          <span>📅 2026-05-27</span>
+          <span class="dot">·</span>
+          <span>実機 GO 待ち</span>
+        </div>
+      </a>
+
+      <a class="card" href="v0.5/spike-results/manual-verify.html">
+        <div class="card-head">
+          <div class="card-title">spike 実機検証手順</div>
+          <span class="badge important">作業中</span>
+        </div>
+        <div class="card-desc">spike-builds/ の ehpk 2 個を Hub Portal にアップロードする手順。S1 (0.5.0) → S4 (0.5.1) 順、別 app_id、GO 判定基準のチェックリスト付き。</div>
+        <div class="card-meta">
+          <span>📅 2026-05-27</span>
+          <span class="dot">·</span>
+          <span>S1 + S4 アップロード待ち</span>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- ===== 過去フェーズ ===== -->
+  <section class="section">
+    <div class="section-head">
+      <h2>過去フェーズ</h2>
+      <span class="badge-phase">v0.4.0 以前</span>
+      <span class="desc">アーカイブ済</span>
+    </div>
+
+    <div class="grid">
+      <div class="card placeholder">
+        <div class="card-head">
+          <div class="card-title">v0.4.0 以前の旦那様向け資料</div>
+          <span class="badge no-go">未 HTML 化</span>
+        </div>
+        <div class="card-desc">v0.3.x〜v0.4.0 期のロードマップ・brief は docs/archive/ に Markdown で保管。必要なら HTML 化して本ハブに追加します。</div>
+        <div class="card-meta">
+          <span>docs/archive/v0.4.0-*</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 将来 ===== -->
+  <section class="section">
+    <div class="section-head">
+      <h2>将来追加予定（placeholder）</h2>
+      <span class="badge-phase">未着手</span>
+      <span class="desc">必要に応じて派生</span>
+    </div>
+
+    <div class="grid">
+      <div class="card placeholder">
+        <div class="card-head">
+          <div class="card-title">v0.5 リリース QA 結果</div>
+          <span class="badge no-go">未生成</span>
+        </div>
+        <div class="card-desc">v0.5 本実装完了後の Locked-phone QA L-1〜L-6 / Regression R-1〜R-10 結果サマリ。旦那様の手動 QA を支援する画面として HTML 化予定。</div>
+      </div>
+
+      <div class="card placeholder">
+        <div class="card-head">
+          <div class="card-title">v0.6 image HUD 判断レビュー</div>
+          <span class="badge no-go">未生成</span>
+        </div>
+        <div class="card-desc">S1/S2 結果を踏まえた v0.6 画面構成案レビュー。複数案を見比べて採用案を返す HTML を予定。</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  G2 Run HUD · Even Realities G2 / Even Hub Plugin<br>
+  最終更新 2026-05-27 ·
+  リポジトリ <code>even-g2-run</code> ·
+  資料は <code>docs/</code> 配下に Markdown で SSOT 化、本ハブから派生 HTML を辿る運用。
+</footer>
+
+</body>
+</html>
