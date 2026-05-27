@@ -39,3 +39,6 @@ docs/design/source/
 
 # spike 検証用 ehpk (ローカル保管、Hub Portal アップロード用)
 spike-builds/
+
+# Agent ツール spawn 時の worktree (spike branch で保管)
+.claude/worktrees/
