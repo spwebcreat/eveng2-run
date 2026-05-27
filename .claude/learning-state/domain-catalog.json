@@ -1,12 +1,36 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-05-24",
+  "last_updated": "2026-05-27",
   "domains": [
     {
       "name": "core",
       "path": ".claude/rules/learning/core.md",
       "tier": "P1",
-      "description": "G2 Run HUD 開発で得た技術知見（Even Hub SDK / Even Realities G2 固有）"
+      "description": "G2 Run HUD 開発で得た技術知見（Even Hub SDK / Even Realities G2 固有 + 横断的判断ルール）"
+    },
+    {
+      "name": "workflow",
+      "path": ".claude/memory/learning-p2/workflow.md",
+      "tier": "P2",
+      "description": "Agent Teams / subagent 発注 / Codex 関与パターン等の作業フロー系"
+    },
+    {
+      "name": "ux",
+      "path": ".claude/memory/learning-p2/ux.md",
+      "tier": "P2",
+      "description": "判断 UI HTML / 旦那様向けインターフェース設計"
+    },
+    {
+      "name": "sdk",
+      "path": ".claude/memory/learning-p2/sdk.md",
+      "tier": "P2",
+      "description": "Even Hub SDK の細部仕様（マイク PCM フォーマット等）"
+    },
+    {
+      "name": "release",
+      "path": ".claude/memory/learning-p2/release.md",
+      "tier": "P2",
+      "description": "リリース・パッケージング系（spike branch pack:ehpk 物理禁止等）"
     }
   ]
 }
