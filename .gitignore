@@ -36,3 +36,6 @@ docs/EvenRealities.pen
 
 # デザインソース（Penpot 等のバイナリ、ローカル保管）
 docs/design/source/
+
+# spike 検証用 ehpk (ローカル保管、Hub Portal アップロード用)
+spike-builds/
