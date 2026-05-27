@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>spike 実機検証手順 v2 — G2 Run HUD</title>
+<meta name="description" content="spike S1 (v0.5.2) / S4 (v0.5.3) を Hub Portal にアップロードして実機で GO/NO-GO 判定する手順。clean build 後の新 ehpk 専用。">
+<style>
+  :root {
+    --bg: #F3F3F3;
+    --surface: #FFFFFF;
+    --surface-soft: #FAFAF7;
+    --text: #252525;
+    --muted: #666666;
+    --border: #D8D4CC;
+    --border-strong: #BFB9AC;
+
+    --blocking: #B42318;
+    --blocking-bg: #FCEBE8;
+    --important: #9A6A00;
+    --important-bg: #FFF7E0;
+    --recommend: #2F7D4F;
+    --recommend-bg: #EAF4EF;
+    --info: #246B9F;
+    --info-bg: #EEF4FA;
+    --no-go: #666666;
+    --no-go-bg: #EFEFEF;
+
+    --shadow: 0 2px 6px rgba(0,0,0,.06);
+    --shadow-strong: 0 4px 12px rgba(0,0,0,.10);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    padding: 12px 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .topbar a.back {
+    color: var(--info); text-decoration: none;
+    font-size: 13px; font-weight: 600;
+  }
+  .topbar a.back:hover { text-decoration: underline; }
+  .topbar h1 { margin: 0; font-size: 16px; font-weight: 700; flex: 1; }
+  .topbar .ver { color: var(--muted); font-size: 13px; }
+
+  .container { max-width: 920px; margin: 0 auto; padding: 28px 24px 80px; }
+
+  h2 {
+    margin: 36px 0 14px;
+    font-size: 18px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  h2:first-child { margin-top: 0; }
+  h3 { margin: 22px 0 10px; font-size: 15px; font-weight: 700; }
+  h4 { margin: 18px 0 6px; font-size: 14px; font-weight: 700; }
+  p { margin: 8px 0; }
+
+  /* ===== ehpk card ===== */
+  .ehpk-card-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 18px 0 24px;
+  }
+  @media (max-width: 700px) {
+    .ehpk-card-wrap { grid-template-columns: 1fr; }
+  }
+  .ehpk-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 5px solid var(--recommend);
+    border-radius: 8px;
+    padding: 14px 18px;
+    box-shadow: var(--shadow);
+  }
+  .ehpk-card.warn { border-left-color: var(--important); }
+  .ehpk-card.alert { border-left-color: var(--blocking); background: var(--blocking-bg); }
+  .ehpk-card h3 { margin: 0 0 6px; font-size: 15px; }
+  .ehpk-card .filename {
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 13px;
+    background: var(--bg);
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .ehpk-card dl {
+    margin: 6px 0 0;
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 4px 12px;
+    font-size: 13px;
+  }
+  .ehpk-card dt { color: var(--muted); }
+  .ehpk-card dd {
+    margin: 0;
+    font-family: "SF Mono", "Menlo", monospace;
+    word-break: break-all;
+  }
+  .ehpk-card .sha {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ===== step card ===== */
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--info);
+    border-radius: 8px;
+    padding: 16px 20px;
+    box-shadow: var(--shadow);
+    margin: 12px 0;
+  }
+  .step-card h3 { margin-top: 0; }
+
+  /* ===== callouts ===== */
+  .callout {
+    background: var(--info-bg);
+    border-left: 4px solid var(--info);
+    padding: 12px 16px;
+    margin: 14px 0;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  .callout.warn  { background: var(--important-bg); border-left-color: var(--important); }
+  .callout.alert { background: var(--blocking-bg);  border-left-color: var(--blocking); }
+  .callout.ok    { background: var(--recommend-bg); border-left-color: var(--recommend); }
+  .callout strong { color: inherit; }
+
+  /* ===== tables ===== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    margin: 12px 0 20px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    vertical-align: top;
+  }
+  th { background: var(--surface-soft); font-weight: 700; font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+  td.num {
+    text-align: center; font-weight: 700;
+    color: var(--info); width: 36px;
+  }
+  td.check {
+    text-align: center; font-size: 18px;
+    width: 50px;
+  }
+  td.check.ok { color: var(--recommend); }
+  td.check.ng { color: var(--blocking); }
+
+  /* ===== lists ===== */
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+
+  .checklist {
+    list-style: none;
+    padding-left: 0;
+  }
+  .checklist li {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px 8px 36px;
+    margin: 6px 0;
+    position: relative;
+    font-size: 14px;
+  }
+  .checklist li::before {
+    content: "☐";
+    position: absolute;
+    left: 12px; top: 8px;
+    color: var(--muted); font-size: 16px;
+  }
+  .checklist input[type="checkbox"] {
+    position: absolute;
+    left: 12px; top: 11px;
+    margin: 0;
+  }
+  .checklist input[type="checkbox"] + span { font-weight: 500; }
+  .checklist input[type="checkbox"]:checked + span {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+  .checklist li.has-cb::before { content: ""; }
+
+  code {
+    background: var(--surface);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    font-size: 13px;
+    font-family: "SF Mono", "Menlo", monospace;
+  }
+  pre {
+    background: #1d2330;
+    color: #e8e8e8;
+    border-radius: 6px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-size: 12px;
+    font-family: "SF Mono", "Menlo", monospace;
+    margin: 8px 0;
+    line-height: 1.45;
+  }
+  pre code { background: none; border: none; padding: 0; color: inherit; }
+  pre .log-key { color: #8cb4ff; }
+  pre .log-ok { color: #86efac; }
+  pre .log-ng { color: #fca5a5; }
+
+  /* ===== sample pairs ===== */
+  .sample-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 16px 0 8px;
+  }
+  .sample {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .sample.ok { border-top: 4px solid var(--recommend); }
+  .sample.ng { border-top: 4px solid var(--blocking); }
+  .sample img {
+    display: block; width: 100%; height: auto;
+    background: #000;
+  }
+  .sample-cap { padding: 8px 12px 10px; font-size: 13px; line-height: 1.5; }
+  .sample-cap .verdict {
+    font-weight: 700; font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-right: 6px;
+  }
+  .sample.ok .verdict { background: var(--recommend-bg); color: var(--recommend); }
+  .sample.ng .verdict { background: var(--blocking-bg);  color: var(--blocking); }
+  .sample-cap .desc { color: var(--muted); font-size: 12px; }
+  .sample-note {
+    font-size: 12px; color: var(--muted);
+    margin: 4px 2px 18px; line-height: 1.5;
+  }
+  @media (max-width: 560px) {
+    .sample-pair { grid-template-columns: 1fr; }
+  }
+
+  /* ===== illustrations ===== */
+  figure.illust {
+    margin: 18px 0;
+    text-align: center;
+  }
+  figure.illust img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: var(--shadow-strong);
+  }
+  figure.illust figcaption {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  figure.illust.missing {
+    background: var(--bg);
+    border: 2px dashed var(--border-strong);
+    border-radius: 8px;
+    padding: 24px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .badge.recommend { background: var(--recommend-bg); color: var(--recommend); }
+  .badge.important { background: var(--important-bg); color: var(--important); }
+  .badge.info      { background: var(--info-bg);      color: var(--info); }
+  .badge.blocking  { background: var(--blocking-bg);  color: var(--blocking); }
+
+  /* ===== TOC ===== */
+  nav.toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 18px;
+    margin: 18px 0 28px;
+    font-size: 13px;
+    box-shadow: var(--shadow);
+  }
+  nav.toc ol { margin: 4px 0 0; padding-left: 18px; }
+  nav.toc li { margin: 2px 0; }
+  nav.toc a { color: var(--info); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 28px 16px;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+  footer a { color: var(--info); }
+
+  @media (max-width: 640px) {
+    .container { padding: 20px 16px 60px; }
+    table { font-size: 13px; }
+    th, td { padding: 8px 10px; }
+    .ehpk-card dl { grid-template-columns: 90px 1fr; }
+  }
+  @media print {
+    .topbar { box-shadow: none; position: static; }
+    .step-card, table, .ehpk-card { break-inside: avoid; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="back" href="../../index.html">← ハブへ戻る</a>
+  <h1>spike 実機検証手順 <span style="color: var(--recommend);">v2</span></h1>
+  <span class="ver">2026-05-27 改訂</span>
+</div>
+
+<div class="container">
+
+  <!-- ===== 最重要警告 ===== -->
+  <div class="callout alert" style="font-size: 15px;">
+    <strong>⛔ 重要</strong>: v0.5.0 / v0.5.1 の旧 ehpk は <strong>build バグで本番アプリの UI が起動する不良品</strong>でした。本ページ案内の新 ehpk (<code>v0.5.2</code> / <code>v0.5.3</code>) で再アップロードしてください。手順詳細は本ページの通りに進めれば確実に動きます。
+  </div>
+
+  <p>v0.5-spike S1 / S4 の <strong>clean build 済 ehpk</strong> を Hub Portal にアップロードして実機で GO/NO-GO 判定する手順です。<br>
+  本ページに書いてある通りに進めれば確実に進められるよう、要所に説明イラスト + 期待画面 + 失敗時のトラブルシューティングを配置しています。</p>
+
+  <nav class="toc">
+    <strong>目次</strong>
+    <ol>
+      <li><a href="#sec-ehpk">今回アップロードする ehpk</a></li>
+      <li><a href="#sec-old">旧 ehpk 警告</a></li>
+      <li><a href="#sec-build">なぜ前回動かなかったか（build 混入バグ）</a></li>
+      <li><a href="#sec-portal">Hub Portal アップロード手順</a></li>
+      <li><a href="#sec-s1">S1: 2×2 タイル image 表示検証</a></li>
+      <li><a href="#sec-s4">S4: G2 マイク PCM stream 検証</a></li>
+      <li><a href="#sec-devtools">DevTools 接続手順（共通）</a></li>
+      <li><a href="#sec-trouble">トラブルシューティング</a></li>
+      <li><a href="#sec-cleanup">検証後の後処理</a></li>
+    </ol>
+  </nav>
+
+  <!-- ===== 1. ehpk カード ===== -->
+  <h2 id="sec-ehpk">1. 今回アップロードする ehpk</h2>
+
+  <div class="ehpk-card-wrap">
+    <div class="ehpk-card">
+      <h3>✅ S1: 2×2 タイル image</h3>
+      <span class="filename">g2-run-hud-spike-s1-0.5.2.ehpk</span>
+      <dl>
+        <dt>package_id</dt><dd>com.spwebcreat.g2runhud.spike.s1</dd>
+        <dt>version</dt><dd>0.5.2</dd>
+        <dt>entrypoint</dt><dd>index.html</dd>
+        <dt>size</dt><dd>33,012 bytes (33 KB)</dd>
+        <dt>生成日時</dt><dd>2026-05-27 22:28</dd>
+        <dt>SHA256</dt><dd class="sha">948d6c3fa11b06ea2af000d3d8709da51d75677ff19c100427e62081681b594e</dd>
+      </dl>
+    </div>
+    <div class="ehpk-card">
+      <h3>✅ S4: G2 マイク PCM</h3>
+      <span class="filename">g2-run-hud-spike-s4-0.5.3.ehpk</span>
+      <dl>
+        <dt>package_id</dt><dd>com.spwebcreat.g2runhud.spike.s4</dd>
+        <dt>version</dt><dd>0.5.3</dd>
+        <dt>entrypoint</dt><dd>index.html</dd>
+        <dt>size</dt><dd>33,549 bytes (33 KB)</dd>
+        <dt>生成日時</dt><dd>2026-05-27 22:29</dd>
+        <dt>SHA256</dt><dd class="sha">fab1695b1508a932d42007d1e116932c2c4805ebb668a3652c8d8726980529ca</dd>
+      </dl>
+    </div>
+  </div>
+
+  <p>配置場所: <code>spike-builds/</code> 配下（git ignored）</p>
+
+  <div class="callout">
+    <strong>S3 (toolkit ビルド検証)</strong> は ehpk なし（実機テスト不要、ビルド通過で確認済）。
+  </div>
+
+  <h3>秘書側の検査ゲート（全部 PASS 済）</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>項目</th>
+        <th>S1 (0.5.2)</th>
+        <th>S4 (0.5.3)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>dist/index.html</code> のみ存在</td><td class="check ok">✅</td><td class="check ok">✅</td></tr>
+      <tr><td><code>main-*.js</code> 不在 (本番 entry 混入なし)</td><td class="check ok">✅</td><td class="check ok">✅</td></tr>
+      <tr><td><code>main-*.css</code> 不在</td><td class="check ok">✅</td><td class="check ok">✅</td></tr>
+      <tr><td>spike タイトルが index.html 内に存在</td><td class="check ok">✅</td><td class="check ok">✅</td></tr>
+      <tr><td>spike bundle ロジック (buildPatternA / audioControl) が含まれる</td><td class="check ok">✅</td><td class="check ok">✅</td></tr>
+      <tr><td>本番 UI 文言 (metric-distance / history-list 等) の混入なし</td><td class="check ok">✅</td><td class="check ok">✅</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ===== 2. 旧 ehpk 警告 ===== -->
+  <h2 id="sec-old">2. 旧 ehpk 警告（使用禁止）</h2>
+
+  <div class="ehpk-card alert">
+    <h3>⛔ 以下 2 つの旧 ehpk は使用しないでください</h3>
+    <ul style="margin: 8px 0 0; font-size: 14px;">
+      <li><code>g2-run-hud-spike-s1-0.5.0.ehpk</code> ─ build バグで本番 UI が起動する</li>
+      <li><code>g2-run-hud-spike-s4-0.5.1.ehpk</code> ─ 同上</li>
+    </ul>
+    <p style="margin-top: 8px; font-size: 13px;">既に <code>spike-builds/</code> から削除済み。誤って手元の別場所に保存している場合は破棄してください。</p>
+  </div>
+
+  <!-- ===== 3. build 混入バグ ===== -->
+  <h2 id="sec-build">3. なぜ v0.5.0 / v0.5.1 が動かなかったか</h2>
+
+  <figure class="illust">
+    <img src="images/illustrations/fig-02-build-contamination.png" alt="build 混入バグ図解">
+    <figcaption>📐 図 2: BEFORE / AFTER — vite multi-entry build による混入と修正</figcaption>
+  </figure>
+
+  <div class="step-card">
+    <h3>原因</h3>
+    <p>spike worktree の <code>vite.config.ts</code> で <strong>本番 entry と spike entry を両方ビルド</strong>する設定になっており、<code>dist/</code> に本番の <code>index.html</code> + <code>main-*.js</code> (本番 UI bundle) が混入していました。<code>app.json</code> で <code>entrypoint: spike-sN.html</code> を指定しても、Hub OS は <strong><code>dist/index.html</code> を優先起動する仕様</strong>のため、本番 UI が表示される結果に。</p>
+    <p>これは秘書 (Claude) が dispatch packet で「本番 index.html を温存」と発注した <strong>秘書側の設計バグ</strong>です。dev-engineer の実装過失ではありません。</p>
+  </div>
+
+  <div class="step-card">
+    <h3>修正内容</h3>
+    <ol>
+      <li>spike worktree から本番 <code>index.html</code> を削除</li>
+      <li><code>spike-sN.html</code> を <code>index.html</code> にリネーム（spike が唯一の entry に）</li>
+      <li><code>vite.config.ts</code> を最小化（input 指定削除 → vite はデフォルトで index.html だけビルド）</li>
+      <li><code>rm -rf dist</code> → clean build → 検査ゲート 6 項目 PASS → pack</li>
+      <li>version bump (S1: 0.5.0 → 0.5.2 / S4: 0.5.1 → 0.5.3) で Hub Portal cache 回避</li>
+    </ol>
+    <p>結果: ehpk サイズが <strong>46-47 KB → 33 KB</strong> に縮小（本番 bundle 除去の証拠）。</p>
+  </div>
+
+  <!-- ===== 4. Hub Portal アップロード手順 ===== -->
+  <h2 id="sec-portal">4. Hub Portal アップロード手順</h2>
+
+  <figure class="illust">
+    <img src="images/illustrations/fig-01-hub-portal-flow.png" alt="Hub Portal アップロードフロー">
+    <figcaption>📐 図 1: spike アプリは本番と別アプリ枠（package_id で区別）</figcaption>
+  </figure>
+
+  <div class="callout warn">
+    <strong>注意</strong>: spike アプリは本番 <code>com.spwebcreat.g2runhud</code> とは <strong>別 package_id（別アプリ枠）</strong>です。前回 S1 (0.5.0) を新規アプリとして登録済なので、今回は <strong>その既存 spike アプリ枠の version 更新</strong>として上げてください（新規アプリ作成は不要）。
+  </div>
+
+  <div class="step-card">
+    <h3>S1 用アプリ枠</h3>
+    <ul>
+      <li>Hub Portal で「G2 HUD Spike S1」アプリページを開く（package_id <code>com.spwebcreat.g2runhud.spike.s1</code>）</li>
+      <li>「新しいバージョンをアップロード」枠に <code>g2-run-hud-spike-s1-0.5.2.ehpk</code> をドロップ</li>
+      <li>version が <code>0.5.2</code> として認識されることを確認 → 公開</li>
+    </ul>
+  </div>
+
+  <div class="step-card">
+    <h3>S4 用アプリ枠 <span class="badge important">初回登録が必要</span></h3>
+    <div class="callout warn" style="margin: 6px 0 10px;">
+      <strong>⚠ S4 はまだ Hub Portal にアプリ枠が作られていません</strong>。S1 と違って <strong>「新規アプリ作成」フローが必須</strong>です（本番アプリ枠に入れると <code>manifest package_id does not match the app package_id</code> エラーになります）。
+    </div>
+    <ol>
+      <li>Hub Portal で「<strong>新規アプリ作成</strong>」（前回 S1 を新規登録した時と同じフロー）</li>
+      <li>package_id に <code>com.spwebcreat.g2runhud.spike.s4</code> を指定</li>
+      <li>name: <code>G2 Spike S4 Mic</code></li>
+      <li>作成された新規アプリ枠に <code>g2-run-hud-spike-s4-0.5.3.ehpk</code> をドロップ → version <code>0.5.3</code> 確認 → 公開</li>
+    </ol>
+  </div>
+
+  <div class="callout alert">
+    <strong>⛔ 本番アプリ「G2 Run HUD」(<code>com.spwebcreat.g2runhud</code> / v0.4.0) 枠には絶対にドロップしないでください</strong><br>
+    package_id が違うので Hub Portal が <code>manifest package_id does not match the app package_id</code> エラーで弾きますが、念のため。
+  </div>
+
+  <!-- ===== 5. S1 検証 ===== -->
+  <h2 id="sec-s1">5. S1: 2×2 タイル image 表示検証</h2>
+
+  <h3>🥽 起動直後の期待画面</h3>
+
+  <figure class="illust">
+    <img src="images/illustrations/fig-03-glass-display.png" alt="グラスに見えるはずの像">
+    <figcaption>📐 図 3: グラスに見えるはずの像 — OK (2×2 タイル) vs NG (本番 UI)</figcaption>
+  </figure>
+
+  <table>
+    <thead>
+      <tr>
+        <th>場所</th>
+        <th>期待画面</th>
+        <th>本番 (NG) と区別する目印</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>iPhone Hub アプリ画面</td>
+        <td>タイトル <code>G2 Run HUD Spike S1 (Tiles)</code></td>
+        <td>本番 = <code>G2 Run HUD</code> + 計測データ UI（距離 / ペース / RUN/WALK ボタン等）</td>
+      </tr>
+      <tr>
+        <td>グラス右目ディスプレイ</td>
+        <td>576×288 全面に <strong>2×2 タイル像</strong>（5 秒ごとに A → B → C 切替）</td>
+        <td>本番 = <code>READY</code> / <code>RUN</code> 等のテキスト表示</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout alert">
+    <strong>本番 UI が出たら即中止</strong>（再発の証拠）。秘書に報告してください。
+  </div>
+
+  <h3>検証手順</h3>
+  <div class="step-card">
+    <ol>
+      <li>iPhone Hub アプリで <strong>「G2 HUD Spike S1」</strong>を起動（本番 <code>G2 Run HUD</code> ではないことをタイトル確認）</li>
+      <li>グラスを掛けて右目ディスプレイを見る</li>
+      <li>自動で 3 パターンが 5 秒ずつ切替（無限ループ）</li>
+      <li>各パターンを視覚チェック（下表）</li>
+    </ol>
+  </div>
+
+  <h3>GO 判定基準（全て満たす）</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>パターン</th>
+        <th>視覚チェック</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>A 境界線</strong></td>
+        <td>各タイル外周 1px 黒枠が <strong>連続した 576×288 外周枠</strong> に見えるか／中央の <code>TL/TR/BL/BR</code> 文字が正しい位置</td>
+      </tr>
+      <tr>
+        <td><strong>B グラデーション</strong></td>
+        <td>中央付近の段差・色ジャンプ・タイル境界の不連続が <strong>無い</strong></td>
+      </tr>
+      <tr>
+        <td><strong>C 大型タイポ</strong></td>
+        <td>境界をまたぐ <code>12:34</code> が <strong>1 文字として読める</strong>／字の上下/左右で段差なし</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>G2 画面の見え方サンプル（OK vs NG 対比）</h3>
+  <p class="sample-note">
+    実機 G2 (4-bit gray / 576×288 / 緑系発光) の見え方を Python で再現したサンプル。<br>
+    実機で OK 側に近ければ <strong>GO</strong>、NG 側に近ければ <strong>NO-GO</strong>。
+  </p>
+
+  <h4>パターン A: 境界線</h4>
+  <div class="sample-pair">
+    <figure class="sample ok">
+      <img src="images/a-ok.png" alt="A-OK: 連続した外周枠">
+      <div class="sample-cap">
+        <span class="verdict">OK</span>
+        田の字の黒枠が <strong>連続して</strong> 1 本に見える。<br>
+        <span class="desc">外周 + 中央十字に隙間/段差なし。TL/TR/BL/BR が正しい位置。</span>
+      </div>
+    </figure>
+    <figure class="sample ng">
+      <img src="images/a-ng.png" alt="A-NG: 中央十字に二重線/段差">
+      <div class="sample-cap">
+        <span class="verdict">NG</span>
+        中央十字に <strong>二重線/段差</strong> が見える。<br>
+        <span class="desc">タイル合成ピクセルがずれて、隙間や枠の重なりが出ている。</span>
+      </div>
+    </figure>
+  </div>
+
+  <h4>パターン B: グラデーション</h4>
+  <div class="sample-pair">
+    <figure class="sample ok">
+      <img src="images/b-ok.png" alt="B-OK: なめらかなグラデーション">
+      <div class="sample-cap">
+        <span class="verdict">OK</span>
+        中央 (x=288) を境に <strong>なめらかに</strong> 黒→緑→黒。<br>
+        <span class="desc">タイル境界に色ジャンプや段差が存在しない。</span>
+      </div>
+    </figure>
+    <figure class="sample ng">
+      <img src="images/b-ng.png" alt="B-NG: 中央で輝度がジャンプ">
+      <div class="sample-cap">
+        <span class="verdict">NG</span>
+        中央 (x=288) で <strong>輝度がジャンプ</strong>、右半分が暗い。<br>
+        <span class="desc">タイル合成タイミングずれ or タイル個別のスケーリング差。</span>
+      </div>
+    </figure>
+  </div>
+
+  <h4>パターン C: 大型タイポ</h4>
+  <div class="sample-pair">
+    <figure class="sample ok">
+      <img src="images/c-ok.png" alt="C-OK: 12:34 が連続して読める">
+      <div class="sample-cap">
+        <span class="verdict">OK</span>
+        <code>12:34</code> が <strong>1 文字として連続</strong> して読める。<br>
+        <span class="desc">境界 (x=288) を跨ぐ「2」「:」「3」の上下/左右に段差なし。</span>
+      </div>
+    </figure>
+    <figure class="sample ng">
+      <img src="images/c-ng.png" alt="C-NG: 中央で字が割れている">
+      <div class="sample-cap">
+        <span class="verdict">NG</span>
+        境界で <strong>字が上下/左右にずれて割れる</strong>。<br>
+        <span class="desc">右半分が下にずれている例。タイル間で y 座標が同期していない。</span>
+      </div>
+    </figure>
+  </div>
+
+  <h3>判定フロー</h3>
+  <figure class="illust">
+    <img src="images/illustrations/fig-05-decision-tree.png" alt="GO/NO-GO 判定フロー">
+    <figcaption>📐 図 5: S1 GO / NO-GO 判定フロー（3 パターン全 OK で GO）</figcaption>
+  </figure>
+
+  <div class="callout ok">
+    <strong>3 パターン全て OK 寄りなら S1 GO 確定</strong> → v0.6 image HUD 路線継続。
+  </div>
+  <div class="callout alert">
+    <strong>1 つでも NG 寄りなら S1 NO-GO</strong> → v0.6 縮小（text HUD 改善のみ）。
+  </div>
+
+  <!-- ===== 6. S4 検証 ===== -->
+  <h2 id="sec-s4">6. S4: G2 マイク PCM stream 検証</h2>
+
+  <h3>🥽 起動直後の期待画面</h3>
+  <table>
+    <thead>
+      <tr><th>場所</th><th>期待画面</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>iPhone Hub アプリ画面</td>
+        <td>タイトル <code>G2 Run HUD Spike S4 (Mic)</code> / permission ダイアログ <code>g2-microphone</code></td>
+      </tr>
+      <tr>
+        <td>グラス右目ディスプレイ</td>
+        <td><code>MIC NNN B/s NNN ms ago | n=NN t=NNs</code> 等のテキスト継続表示</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>検証手順</h3>
+  <div class="step-card">
+    <ol>
+      <li>Hub Portal で <code>g2-run-hud-spike-s4-0.5.3.ehpk</code> をアップロード（既存枠 or 新規アプリ作成）</li>
+      <li>iPhone Hub アプリで <strong>「G2 Spike S4 Mic」</strong>を起動</li>
+      <li>permission ダイアログ <code>g2-microphone</code> を <strong>「許可」</strong></li>
+      <li>下記「DevTools 接続手順」で iPhone Safari Web Inspector を接続</li>
+      <li>自動で 5 分マイク ON（手動停止は G2 長押し）</li>
+      <li>コンソール出力 + グラス表示を観察</li>
+    </ol>
+  </div>
+
+  <h3>📊 期待するコンソール出力（例）</h3>
+  <pre><code><span class="log-key">[s4]</span> spike S4 starting
+<span class="log-key">[s4]</span> waiting for EvenAppBridge ...
+<span class="log-key">[s4]</span> bridge ready / attaching containers ...
+<span class="log-key">[s4]</span> attached / requesting audioControl(true)
+<span class="log-key">[s4]</span> <span class="log-ok">audioControl(true)=true</span> latencyMs=87
+<span class="log-key">[s4]</span> audioEvent #1 bytes=3200 elapsedFromStart=412ms
+<span class="log-key">[s4]</span> audioEvent #2 bytes=3200 elapsedFromStart=515ms
+<span class="log-key">[s4]</span> ... (継続)
+<span class="log-key">[s4]</span> <span class="log-ok">summary @ 5min</span> totalEvents=2987 avgBps=31840 p95Interval=108ms</code></pre>
+
+  <h3>GO 判定基準</h3>
+  <table>
+    <thead>
+      <tr><th>メトリクス</th><th>GO 値</th><th>結果欄</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>audioControl(true)=true</code></td><td>true</td><td>☐</td></tr>
+      <tr><td><code>audioControlOnLatencyMs</code></td><td>&lt; 200ms</td><td>☐</td></tr>
+      <tr><td><code>firstEventLatencyMs</code></td><td>&lt; 1000ms</td><td>☐</td></tr>
+      <tr><td><code>events</code> (totalEvents)</td><td>&gt; 0</td><td>☐</td></tr>
+      <tr><td><code>avgBps</code></td><td>≈ 32,000 ± 10%（16kHz/16-bit/100ms）</td><td>☐</td></tr>
+      <tr><td><code>bytes/event</code> p50 / p95</td><td>一定 (3200/3200 想定)</td><td>☐</td></tr>
+      <tr><td><code>interval</code> p95</td><td>≤ 500ms</td><td>☐</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout ok">
+    <strong>全項目 GO</strong> → v0.9 音声コマンド実装着手可能。<strong>Whisper-tiny on-device STT も視野</strong>。
+  </div>
+  <div class="callout alert">
+    <strong>1 つでも NG</strong> → v0.9 を PWA Web Speech API 方針に転換。
+  </div>
+
+  <!-- ===== 7. DevTools 接続 ===== -->
+  <h2 id="sec-devtools">7. DevTools 接続手順（補助・任意）</h2>
+
+  <div class="callout ok">
+    <strong>📱 多くの場合 iPhone STATUS 表示だけで GO/NO-GO 判定可能</strong>。下記の DevTools 接続は補助手段で、必須ではありません（2026-05-28 旦那様実機検証で実証）。
+  </div>
+
+  <div class="callout warn">
+    <strong>⚠ Even Hub アプリの WKWebView 制限</strong>: 開発メニュー → iPhone を選んでも「<strong>調査可能なアプリケーションがありません</strong>」と出る場合があります。これは Even Hub アプリ側が iOS 16.4+ の <code>WKPreferences.isInspectable = true</code> を設定していないため（旦那様や秘書では解決不能）。その場合は次節「iPhone STATUS 表示で判定」を使ってください。
+  </div>
+
+  <figure class="illust">
+    <img src="images/illustrations/fig-04-devtools.png" alt="DevTools 接続手順">
+    <figcaption>📐 図 4: DevTools 接続手順（USB → Safari 開発メニュー → コンソール）— 接続できれば便利、できなくても下記 STATUS 判定で OK</figcaption>
+  </figure>
+
+  <div class="step-card">
+    <h3>iPhone Safari Web Inspector で <code>[s1]</code> / <code>[s4]</code> ログを見る</h3>
+    <ol>
+      <li><strong>Mac 側準備</strong>: Safari → 設定 → 詳細 → ✅「メニューバーに開発メニューを表示」</li>
+      <li><strong>iPhone 側準備</strong>: 設定 → Safari → 詳細 → ✅「Web インスペクタ」</li>
+      <li>iPhone を Mac に <strong>USB 接続</strong>（信頼ダイアログがあれば許可）</li>
+      <li>Mac Safari の <strong>開発メニュー</strong> → iPhone 名 → spike アプリ（<code>G2 HUD Spike S1</code> または <code>G2 Spike S4 Mic</code>）を選択</li>
+      <li>Web Inspector が起動 → <strong>コンソールタブ</strong>で <code>[s1]</code> / <code>[s4]</code> プレフィックスのログを確認</li>
+    </ol>
+  </div>
+
+  <h3 style="margin-top: 28px;">📊 iPhone STATUS 表示で GO/NO-GO 判定（DevTools 不要）</h3>
+  <p>iPhone Hub アプリ画面の STATUS 表示で必要数値はほぼ全て見えます。S4 を例に判定方法:</p>
+
+  <pre><code>STATUS: MIC 35200 B/s 38ms ago | n=198 t=20s
+              ↑avgBps     ↑直近    ↑events ↑経過秒</code></pre>
+
+  <table>
+    <thead>
+      <tr><th>STATUS 項目</th><th>計算 / GO 基準</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>NNN B/s</code></td><td>avgBps が 32,000 ± 10% (28.8K-35.2K) なら ✅</td></tr>
+      <tr><td><code>n=NN</code></td><td>events 数。5 分 (300s) で n≈3000 なら理論値通り ✅</td></tr>
+      <tr><td><code>t=NNs</code></td><td>経過秒。<code>done (timeout)</code> で 5 分完走確認</td></tr>
+      <tr><td><code>NN ms ago</code></td><td>直近 event からの経過。&lt; 500ms なら stream 安定 ✅</td></tr>
+      <tr><td>派生: events/sec</td><td>n ÷ t ≈ 10/s が理論値 (100ms 間隔)</td></tr>
+      <tr><td>派生: bytes/event</td><td>(B/s) ÷ (events/s) ≈ 3,200 が理論値</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    S1 の場合は STATUS でなく <strong>グラスの 2×2 タイル像の視覚チェック</strong> が判定ベースです（DevTools のログも、見えれば便利ですが必須ではない）。
+  </div>
+
+  <!-- ===== 8. トラブルシューティング ===== -->
+  <h2 id="sec-trouble">8. トラブルシューティング</h2>
+
+  <table>
+    <thead>
+      <tr><th>症状</th><th>原因候補</th><th>対処</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>グラスに本番 UI (<code>READY</code> / <code>RUN</code>) が見える</td>
+        <td>(a) iPhone Hub アプリで本番アプリを起動した<br>(b) build 混入バグ再発</td>
+        <td>iPhone Hub アプリのタイトル確認 → spike を選び直し / それでも本番なら秘書に報告</td>
+      </tr>
+      <tr>
+        <td>グラスに何も見えない（真っ黒）</td>
+        <td>(a) bridge 取得 timeout<br>(b) attach 失敗<br>(c) ペアリング切れ</td>
+        <td>DevTools コンソールで <code>[s1] bridge timeout</code> / <code>[s1] attach failed</code> 等のログを確認 → 秘書に共有</td>
+      </tr>
+      <tr>
+        <td>パターン切替が起きない（A だけ表示）</td>
+        <td>(a) render エラー (B/C 描画失敗)<br>(b) PNG エンコード失敗</td>
+        <td>DevTools コンソールで <code>[s1] tile sent</code> ログが 4 タイル × 3 パターン分出ているか確認</td>
+      </tr>
+      <tr>
+        <td>S4 で <code>audioControl=false</code></td>
+        <td>権限ダイアログを「拒否」した</td>
+        <td>iPhone 設定 → spike アプリ → マイク許可 → 再起動</td>
+      </tr>
+      <tr>
+        <td>Hub Portal アップロードが <code>manifest package_id does not match the app package_id</code> エラー</td>
+        <td>本番アプリ枠に spike ehpk を入れた</td>
+        <td>spike 専用枠 (com.spwebcreat.g2runhud.spike.sN) を開いてからアップロード</td>
+      </tr>
+      <tr>
+        <td>「アップロードしたのに反映されない」</td>
+        <td>Hub Portal cache（同 version 上書き）</td>
+        <td>version が <code>0.5.2</code> / <code>0.5.3</code> になっているか確認（旧 0.5.0 / 0.5.1 を上げていないか）</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ===== 9. 後処理 ===== -->
+  <h2 id="sec-cleanup">9. 検証後の後処理</h2>
+  <ul class="checklist">
+    <li class="has-cb"><label><input type="checkbox"><span> DevTools コンソールのログをスクショ or copy 保存（秘書共有用）</span></label></li>
+    <li class="has-cb"><label><input type="checkbox"><span> S1 / S4 の GO/NO-GO 判定結果をメモ</span></label></li>
+    <li class="has-cb"><label><input type="checkbox"><span> 秘書に共有（ログ + 判定）</span></label></li>
+    <li class="has-cb"><label><input type="checkbox"><span> 検証完了後、Hub Portal の spike アプリ 2 個を削除</span></label></li>
+  </ul>
+
+  <div class="callout">
+    両 spike とも <strong>本番 (v0.4.0) と完全独立</strong> なので、共存しても本番動作に影響ありません。
+    本番アプリは触らずに spike 検証だけ進められます。
+  </div>
+
+</div>
+
+<footer>
+  G2 Run HUD · spike 実機検証手順 v2 · 2026-05-27 改訂 ·
+  <a href="summary-for-owner.html">spike 結果サマリ</a> ·
+  <a href="../../index.html">確認資料ハブ</a>
+</footer>
+
+</body>
+</html>

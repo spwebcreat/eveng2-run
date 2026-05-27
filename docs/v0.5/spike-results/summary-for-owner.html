@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v0.5-spike 結果サマリ — G2 Run HUD</title>
+<meta name="description" content="v0.5-spike (S1/S2/S3/S4) の状態と実機 GO/NO-GO 後の分岐ガイド。">
+<style>
+  :root {
+    --bg: #F3F3F3;
+    --surface: #FFFFFF;
+    --surface-soft: #FAFAF7;
+    --text: #252525;
+    --muted: #666666;
+    --border: #D8D4CC;
+    --border-strong: #BFB9AC;
+
+    --blocking: #B42318;
+    --blocking-bg: #FCEBE8;
+    --important: #9A6A00;
+    --important-bg: #FFF7E0;
+    --recommend: #2F7D4F;
+    --recommend-bg: #EAF4EF;
+    --info: #246B9F;
+    --info-bg: #EEF4FA;
+    --no-go: #666666;
+    --no-go-bg: #EFEFEF;
+
+    --shadow: 0 2px 6px rgba(0,0,0,.06);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topbar a.back {
+    color: var(--info);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .topbar a.back:hover { text-decoration: underline; }
+  .topbar h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    flex: 1;
+  }
+  .topbar .ver {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .container {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 28px 24px 80px;
+  }
+
+  h2 {
+    margin: 32px 0 14px;
+    font-size: 17px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--border);
+  }
+  h2:first-child { margin-top: 0; }
+  h3 {
+    margin: 22px 0 10px;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  p { margin: 8px 0; }
+
+  /* ===== Status table ===== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    margin: 12px 0 20px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  th {
+    background: var(--surface-soft);
+    color: var(--text);
+    font-weight: 700;
+    font-size: 13px;
+  }
+  tr:last-child td { border-bottom: none; }
+  td.center, th.center { text-align: center; }
+
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .badge.recommend { background: var(--recommend-bg); color: var(--recommend); }
+  .badge.important { background: var(--important-bg); color: var(--important); }
+  .badge.info      { background: var(--info-bg);      color: var(--info); }
+  .badge.no-go     { background: var(--no-go-bg);     color: var(--no-go); }
+  .badge.blocking  { background: var(--blocking-bg);  color: var(--blocking); }
+
+  .check { color: var(--recommend); font-weight: 700; }
+  .pause { color: var(--muted); }
+  .na    { color: var(--muted); }
+
+  /* ===== Decision cards ===== */
+  .decision-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+    margin: 12px 0 20px;
+  }
+  .decision {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+  }
+  .decision-title {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .decision .arrow {
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .decision .outcome {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .decision.go    { border-left: 4px solid var(--recommend); }
+  .decision.nogo  { border-left: 4px solid var(--blocking); }
+  .decision.fixed { border-left: 4px solid var(--info); }
+
+  /* ===== Callout ===== */
+  .callout {
+    background: var(--info-bg);
+    border-left: 4px solid var(--info);
+    padding: 12px 16px;
+    margin: 14px 0;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  .callout.warn { background: var(--important-bg); border-left-color: var(--important); }
+  .callout.ok   { background: var(--recommend-bg); border-left-color: var(--recommend); }
+  .callout strong { color: var(--text); }
+
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+
+  code {
+    background: var(--surface);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    font-size: 13px;
+    font-family: "SF Mono", "Menlo", monospace;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 28px 16px;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+  footer a { color: var(--info); }
+
+  @media (max-width: 640px) {
+    .container { padding: 20px 16px 60px; }
+    table { font-size: 13px; }
+    th, td { padding: 8px 10px; }
+  }
+
+  @media print {
+    .topbar { box-shadow: none; position: static; }
+    .decision, table { break-inside: avoid; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="back" href="../../index.html">← ハブへ戻る</a>
+  <h1>v0.5-spike 結果サマリ</h1>
+  <span class="ver">2026-05-28 確定版</span>
+</div>
+
+<div class="container">
+
+  <div class="callout ok" style="font-size: 15px;">
+    <strong>🎉 2026-05-28 確定</strong>: v0.5-spike <strong>S1 / S4 ともに GO 確定</strong>。S4 は 5 分間 n=2979 events / 平均 31,776 B/s（理論値ど真ん中）の好結果。v0.6 image HUD 路線 + v0.9 音声コマンド着手可能に。
+  </div>
+
+  <p>v0.5-spike 完了。Codex 総合レビュー + 旦那様による build 混入バグ発見 + 旦那様実機検証で確定。</p>
+
+  <h2>4 spike の状態</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>spike</th>
+        <th>内容</th>
+        <th class="center">実装</th>
+        <th class="center">ビルド</th>
+        <th class="center">シミュレータ</th>
+        <th class="center">実機 GO</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>S1</strong></td>
+        <td>2×2 タイル image bridge</td>
+        <td class="center check">✅</td>
+        <td class="center check">✅</td>
+        <td class="center check">✅</td>
+        <td class="center"><span class="badge recommend">GO 確定</span></td>
+      </tr>
+      <tr>
+        <td><strong>S2</strong></td>
+        <td>image update latency 計測</td>
+        <td class="center pause">⏸ 未着手</td>
+        <td class="center na">—</td>
+        <td class="center na">—</td>
+        <td class="center"><span class="badge info">v0.6 着手前に必須</span></td>
+      </tr>
+      <tr>
+        <td><strong>S3</strong></td>
+        <td>even-toolkit + upng-js ビルド</td>
+        <td class="center check">✅</td>
+        <td class="center check">✅</td>
+        <td class="center na">N/A</td>
+        <td class="center"><span class="badge recommend">採用確定</span></td>
+      </tr>
+      <tr>
+        <td><strong>S4</strong></td>
+        <td>G2 マイク PCM ペアリング</td>
+        <td class="center check">✅</td>
+        <td class="center check">✅</td>
+        <td class="center check">✅</td>
+        <td class="center"><span class="badge recommend">GO 確定</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>S4 GO 判定の根拠（実測）</h2>
+  <table>
+    <thead>
+      <tr><th>メトリクス</th><th>GO 基準</th><th>5 分実測</th><th class="center">判定</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>events 完走</td><td>&gt; 0</td><td><strong>n=2979</strong></td><td class="center check">✅</td></tr>
+      <tr><td>avgBps</td><td>32,000 ± 10%</td><td><strong>31,776 B/s</strong> (ど真ん中)</td><td class="center check">✅</td></tr>
+      <tr><td>events/sec</td><td>≈ 10/s</td><td>9.93/s</td><td class="center check">✅</td></tr>
+      <tr><td>平均 interval</td><td>≤ 500ms (p95)</td><td>~101ms</td><td class="center check">✅</td></tr>
+      <tr><td>firstEventLatency</td><td>&lt; 1000ms</td><td>数秒以内に開始</td><td class="center check">✅</td></tr>
+      <tr><td>stream 安定性</td><td>5 分完走</td><td><code>done (timeout)</code></td><td class="center check">✅</td></tr>
+      <tr><td>グラス表示</td><td>継続表示</td><td>OK</td><td class="center check">✅</td></tr>
+    </tbody>
+  </table>
+
+  <h2>旦那様の残作業</h2>
+  <ul>
+    <li>Hub Portal の spike 用 2 アプリ（<code>G2 HUD Spike S1</code> / <code>G2 Spike S4 Mic</code>）を削除</li>
+    <li>v0.5 本実装着手 (<code>docs/v0.5/implementation-plan.md</code> 通り、P0 5 件完了済 + S3 採用確定済)</li>
+  </ul>
+
+  <h2>確定結論（2026-05-28 GO 確定後）</h2>
+
+  <h3>S1（image bridge）— ✅ GO 確定</h3>
+  <div class="decision-grid">
+    <div class="decision go">
+      <div class="decision-title"><span class="badge recommend">GO 確定</span></div>
+      <div class="outcome">v0.6 image HUD 路線継続。S2 latency 計測着手可。</div>
+    </div>
+  </div>
+
+  <h3>S3（toolkit）</h3>
+  <div class="decision-grid">
+    <div class="decision fixed">
+      <div class="decision-title"><span class="badge info">採用確定</span></div>
+      <div class="outcome">
+        <code>cleanForG2Safe</code>（自前 safe wrapper、<code>src/even/text-clean-safe.ts</code>）経由で
+        <code>even-toolkit/text-clean</code> を v0.5-6 に取り込む（P0-1 で対応済）。
+        <code>png-utils</code> は v0.6 で再評価。<code>upng-js</code> は不要。
+      </div>
+    </div>
+  </div>
+
+  <h3>S4（mic PCM）— ✅ GO 確定</h3>
+  <div class="decision-grid">
+    <div class="decision go">
+      <div class="decision-title"><span class="badge recommend">GO 確定</span></div>
+      <div class="outcome">v0.9 音声コマンド実装着手可能。Whisper-tiny on-device STT も視野に入る。</div>
+    </div>
+  </div>
+
+  <h2>v0.5 本実装着手判定</h2>
+
+  <div class="callout ok">
+    <strong>S1 / S4 の実機 GO/NO-GO 結果は v0.5 着手判定に不要。</strong>
+    <ul>
+      <li>S1 → 影響は v0.6 image HUD のみ</li>
+      <li>S4 → 影響は v0.9 音声コマンドのみ</li>
+      <li>v0.5 範囲（text HUD 改善 + RendererPort + Settings + GPX + HR 削除 + text-clean）に必要なのは S3 結果のみ → 既に採用確定</li>
+    </ul>
+  </div>
+
+  <p><strong>v0.5 着手可否</strong>: S3 採用判定 ✅ → safe wrapper 経由で取り込み済。P0 修正 5 件（完了済）→ <strong>着手可能</strong>。</p>
+
+  <h2>v0.6 着手前に必須</h2>
+  <div class="callout warn">
+    <strong>S2（image update latency 計測）を必ず実施。</strong> S1 NO-GO の場合は S2 を「単タイル × 3 パターン」に縮小。
+  </div>
+
+  <h2>参照ファイル</h2>
+  <ul>
+    <li>実機検証手順 → <a href="manual-verify.html">manual-verify.html (v2)</a></li>
+    <li>spike ehpk (新) → <code>spike-builds/g2-run-hud-spike-s1-0.5.2.ehpk</code> / <code>g2-run-hud-spike-s4-0.5.3.ehpk</code></li>
+    <li>v0.5 本実装プラン → <code>docs/v0.5/implementation-plan.md</code></li>
+    <li>判断ログ SSOT → <code>docs/v0.5/decision-log.md</code></li>
+  </ul>
+
+</div>
+
+<footer>
+  G2 Run HUD · v0.5-spike 結果サマリ · 2026-05-28 確定版 ·
+  <a href="../../index.html">確認資料ハブへ戻る</a>
+</footer>
+
+</body>
+</html>
