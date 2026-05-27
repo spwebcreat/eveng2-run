@@ -2,11 +2,16 @@
 
 3 spike 実装完了。実機検証で GO/NO-GO 確定をお願いします。
 
-## 検証対象 ehpk
+## 検証対象 ehpk と推奨アップロード順
 
-`spike-builds/` 配下に配置済（git ignored）:
-- `g2-run-hud-spike-s1-0.5.0.ehpk` (46KB) ─ S1 image tile 検証
-- `g2-run-hud-spike-s4-0.5.0.ehpk` (47KB) ─ S4 マイク PCM 検証
+`spike-builds/` 配下に配置済（git ignored）。
+
+**learning P1「同一 version はキャッシュで反映されない」回避のため、version を昇順に振っています。アップロードはこの順で。**
+
+| 順 | ehpk | version | 担当 | 優先度理由 |
+|---|---|---|---|---|
+| **1** | `g2-run-hud-spike-s1-0.5.0.ehpk` (46KB) | `0.5.0` | S1 image tile | v0.6 を block するので最優先 |
+| **2** | `g2-run-hud-spike-s4-0.5.1.ehpk` (47KB) | `0.5.1` | S4 マイク PCM | v0.9 入口 |
 
 S3 はビルド検証のみで ehpk なし（実機テスト不要）。
 
@@ -19,12 +24,12 @@ S3 はビルド検証のみで ehpk なし（実機テスト不要）。
 - 本番 `com.spwebcreat.g2runhud` (v0.4.0) と **別アプリ** として Hub Portal に登録
 - package_id: `com.spwebcreat.g2runhud.spike.s1`
 - name: `G2 HUD Spike S1`
-- version: `0.5.0`
+- version: `0.5.0`（先にアップロード）
 - Description: 「v0.5-spike S1: 2×2 タイルで 576×288 image 表示検証。本番版とは別アプリ。検証後削除予定」
 
 ### 検証手順
 
-1. Hub Portal に `g2-run-hud-spike-s1-0.5.0.ehpk` をアップロード
+1. Hub Portal に `g2-run-hud-spike-s1-0.5.0.ehpk` をアップロード（先）
 2. G2 で起動
 3. 自動で 3 パターンが 5 秒ずつ切替（無限ループ）
 
@@ -47,11 +52,13 @@ S3 はビルド検証のみで ehpk なし（実機テスト不要）。
 
 - 本番と別アプリ
 - package_id: `com.spwebcreat.g2runhud.spike.s4`
+- name: `G2 HUD Spike S4`
+- version: `0.5.1`（S1 の後にアップロード）
 - permission `g2-microphone` の同意ダイアログを「許可」
 
 ### 検証手順
 
-1. Hub Portal に `g2-run-hud-spike-s4-0.5.0.ehpk` をアップロード
+1. Hub Portal に `g2-run-hud-spike-s4-0.5.1.ehpk` をアップロード（S1 の後）
 2. G2 で起動 → permission 許可
 3. iPhone 側で `chrome://inspect` または `Safari Web Inspector` で DevTools コンソール接続
 4. 自動で 5 分マイク ON（手動停止は G2 長押し）
