@@ -606,3 +606,57 @@ body {
   border-radius: 3px;
   font-size: 0.9em;
 }
+
+/* ===== 設定パネル (v0.5-3) ===== */
+.settings-summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.settings-summary::-webkit-details-marker {
+  display: none;
+}
+.settings-summary h2 {
+  margin: 0;
+  display: inline;
+}
+.settings-summary::after {
+  content: '▶';
+  font-size: 0.8em;
+  color: var(--tc-2nd);
+  transition: transform 0.15s ease;
+}
+details[open] > .settings-summary::after {
+  transform: rotate(90deg);
+}
+.settings-body {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.setting-row label {
+  color: var(--tc-1st);
+  font-size: 0.95rem;
+}
+.setting-row select {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--bc-4th);
+  border-radius: var(--radius-offset);
+  background: var(--bc-1st);
+  color: var(--tc-1st);
+}
+.settings-hint {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--tc-2nd);
+}

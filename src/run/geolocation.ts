@@ -24,6 +24,8 @@ export interface GeolocationHandle {
 export interface GeolocationOptions {
   onPosition: (pos: GeoPosition) => void
   onError: (message: string) => void
+  /** GPS 高精度モード（Settings から渡す）。省略時 true（ランニング用途の既定）。 */
+  enableHighAccuracy?: boolean
 }
 
 /**
@@ -36,6 +38,7 @@ export interface GeolocationOptions {
  */
 export function startGeolocation(options: GeolocationOptions): GeolocationHandle {
   const { onPosition, onError } = options
+  const enableHighAccuracy = options.enableHighAccuracy ?? true
   let stopped = false
   let watchId: number | null = null
 
@@ -91,7 +94,7 @@ export function startGeolocation(options: GeolocationOptions): GeolocationHandle
         }
       },
       {
-        enableHighAccuracy: true,
+        enableHighAccuracy,
         maximumAge: 0,
         timeout: 30_000,
       },

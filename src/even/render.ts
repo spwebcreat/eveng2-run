@@ -13,7 +13,14 @@
 
 import { CONTAINER_IDS, type RenderMap } from './bridge'
 import type { RunState, Lap, PageId } from '../run/state'
-import { formatDistance, formatPace, formatTime } from '../run/format'
+import {
+  formatDistance,
+  formatPace,
+  formatTime,
+  distanceUnitLabel,
+  paceUnitLabel,
+  type DisplayUnit,
+} from '../run/format'
 import { selectLapSummary } from '../run/summary'
 
 /**
@@ -98,7 +105,7 @@ function statusWithPage(state: RunState): string {
  *   container 幅 496px / padding 4px → 有効幅 488px。
  *   実機 font は proportional のため厳密な中央配置は不可。実機確認後に微調整可。
  */
-function messageText(state: RunState): string {
+function messageText(state: RunState, unit: DisplayUnit): string {
   if (state.screenMode === 'error') {
     return state.errorMessage ?? '位置情報を取得できません'
   }
@@ -108,8 +115,8 @@ function messageText(state: RunState): string {
   if (state.screenMode === 'lap') {
     const lap = state.laps[state.laps.length - 1]
     if (!lap) return ' '
-    const lapPace = lap.lapTimeMs > 0 ? formatPace(lap.lapTimeMs / 1000) : "--'--\""
-    const avgPace = formatPace(lap.averagePaceSecPerKm)
+    const lapPace = lap.lapTimeMs > 0 ? formatPace(lap.lapTimeMs / 1000, unit) : "--'--\""
+    const avgPace = formatPace(lap.averagePaceSecPerKm, unit)
     const msg = lap.message ?? ''
     return `LAP ${lap.km}  ${lapPace} / AVG ${avgPace}\n${msg}`
   }
@@ -131,15 +138,15 @@ function messageText(state: RunState): string {
  * - laps が 1+ 件: 新しい順に最大 3 件、各行 `LAP n  m'ss" / AVG m'ss"`
  * 1 ヶ所の text container (textMessage) に \n 区切りで詰める。
  */
-function lapListText(laps: ReadonlyArray<Lap>): string {
+function lapListText(laps: ReadonlyArray<Lap>, unit: DisplayUnit): string {
   if (laps.length === 0) {
     return 'LAP 履歴なし\n1km走るとここに表示されます'
   }
   // 新しい順 = 末尾から最大 3 件
   const recent = laps.slice(-3).reverse()
   const lines = recent.map((lap) => {
-    const lapPace = lap.lapTimeMs > 0 ? formatPace(lap.lapTimeMs / 1000) : "--'--\""
-    const avgPace = formatPace(lap.averagePaceSecPerKm)
+    const lapPace = lap.lapTimeMs > 0 ? formatPace(lap.lapTimeMs / 1000, unit) : "--'--\""
+    const avgPace = formatPace(lap.averagePaceSecPerKm, unit)
     return `LAP ${lap.km}  ${lapPace} / AVG ${avgPace}`
   })
   return lines.join('\n')
@@ -151,16 +158,16 @@ function lapListText(laps: ReadonlyArray<Lap>): string {
  * - laps が 1+ 件: BEST / SLOW / AVG の 3 行
  *   位置揃え目的でラベルは半角スペースで桁を揃える（proportional font なので近似）。
  */
-function lapSummaryText(laps: ReadonlyArray<Lap>): string {
+function lapSummaryText(laps: ReadonlyArray<Lap>, unit: DisplayUnit): string {
   const summary = selectLapSummary(laps)
   if (summary.fastest === null || summary.slowest === null) {
     return 'サマリなし\n1km以上走ると表示されます'
   }
   const bestPace =
-    summary.fastest.lapTimeMs > 0 ? formatPace(summary.fastest.lapTimeMs / 1000) : "--'--\""
+    summary.fastest.lapTimeMs > 0 ? formatPace(summary.fastest.lapTimeMs / 1000, unit) : "--'--\""
   const slowPace =
-    summary.slowest.lapTimeMs > 0 ? formatPace(summary.slowest.lapTimeMs / 1000) : "--'--\""
-  const avgPace = formatPace(summary.averagePaceSecPerKm)
+    summary.slowest.lapTimeMs > 0 ? formatPace(summary.slowest.lapTimeMs / 1000, unit) : "--'--\""
+  const avgPace = formatPace(summary.averagePaceSecPerKm, unit)
   return [
     `BEST  LAP ${summary.fastest.km}   ${bestPace}`,
     `SLOW  LAP ${summary.slowest.km}   ${slowPace}`,
@@ -171,20 +178,26 @@ function lapSummaryText(laps: ReadonlyArray<Lap>): string {
 /**
  * Page 1 (HUD) の RenderMap を構築。既存挙動を完全維持。
  */
-function renderPage1(state: RunState, now: Date): RenderMap {
+function renderPage1(state: RunState, now: Date, unit: DisplayUnit): RenderMap {
   const map = new Map<number, string>()
 
   // 上段: 経過時間 / 距離 / 日付・時刻
   map.set(CONTAINER_IDS.textTime, `経過時間\n${formatTime(state.elapsedMs)}`)
-  map.set(CONTAINER_IDS.textDistance, `距離\n${formatDistance(state.distanceM)} km`)
+  map.set(
+    CONTAINER_IDS.textDistance,
+    `距離\n${formatDistance(state.distanceM, unit)} ${distanceUnitLabel(unit)}`,
+  )
   map.set(CONTAINER_IDS.textClock, formatClockHeader(now))
 
   // 中央: メッセージ表示領域
-  map.set(CONTAINER_IDS.textMessage, messageText(state))
+  map.set(CONTAINER_IDS.textMessage, messageText(state, unit))
 
   // 下段: 平均ペース / ステータス（mode + ページインジケータ込み）。
   // 下段左 (旧 心拍) は v0.5 で削除。container ID 15 は v0.9 BLE 外部 HR 表示用に予約。
-  map.set(CONTAINER_IDS.textPace, `平均ペース\n${formatPace(state.averagePaceSecPerKm)}/km`)
+  map.set(
+    CONTAINER_IDS.textPace,
+    `平均ペース\n${formatPace(state.averagePaceSecPerKm, unit)}${paceUnitLabel(unit)}`,
+  )
   map.set(CONTAINER_IDS.textStatus, statusWithPage(state))
 
   // 透明イベントキャプチャ container は content 空白のまま（初回 attach 時の ' ' 設定で十分）
@@ -216,19 +229,23 @@ function renderCenterOnly(state: RunState, centerText: string): RenderMap {
  * @param state  RunState
  * @param now    現在時刻（DI でテスト容易性確保）
  */
-export function renderForState(state: RunState, now: Date = new Date()): RenderMap {
+export function renderForState(
+  state: RunState,
+  now: Date = new Date(),
+  unit: DisplayUnit = 'metric',
+): RenderMap {
   // lap 通知中は currentPage に関わらず Page 1 表示優先（既存ラップ通知 UX を妨げない）
   if (state.screenMode === 'lap') {
-    return renderPage1(state, now)
+    return renderPage1(state, now, unit)
   }
 
   const page: PageId = state.currentPage
   if (page === 2) {
-    return renderCenterOnly(state, lapListText(state.laps))
+    return renderCenterOnly(state, lapListText(state.laps, unit))
   }
   if (page === 3) {
-    return renderCenterOnly(state, lapSummaryText(state.laps))
+    return renderCenterOnly(state, lapSummaryText(state.laps, unit))
   }
   // page === 1 (default)
-  return renderPage1(state, now)
+  return renderPage1(state, now, unit)
 }

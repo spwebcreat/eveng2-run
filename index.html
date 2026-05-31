@@ -107,6 +107,52 @@
         </div>
       </section>
 
+      <section class="card settings-card">
+        <details id="settings-section">
+          <summary class="settings-summary"><h2>設定</h2></summary>
+          <div class="settings-body">
+            <div class="setting-row">
+              <label for="set-unit">単位</label>
+              <select id="set-unit">
+                <option value="metric">メートル法 (km)</option>
+                <option value="imperial">ヤード法 (mile)</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label for="set-target-pace">目標ペース (分/km)</label>
+              <select id="set-target-pace">
+                <option value="">無効</option>
+                <option value="240">4'00</option>
+                <option value="270">4'30</option>
+                <option value="300">5'00</option>
+                <option value="330">5'30</option>
+                <option value="360">6'00</option>
+                <option value="390">6'30</option>
+                <option value="420">7'00</option>
+                <option value="450">7'30</option>
+                <option value="480">8'00</option>
+                <option value="510">8'30</option>
+                <option value="540">9'00</option>
+                <option value="570">9'30</option>
+                <option value="600">10'00</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label for="set-gps">GPS 高精度</label>
+              <input type="checkbox" id="set-gps" />
+            </div>
+            <div class="setting-row">
+              <label for="set-initial-mode">表示モード初期値</label>
+              <select id="set-initial-mode">
+                <option value="run">RUN</option>
+                <option value="walk">WALK</option>
+              </select>
+            </div>
+            <p class="settings-hint">目標ペースとの差分表示は v0.6 で追加予定です。</p>
+          </div>
+        </details>
+      </section>
+
       <section class="card">
         <h2>ステータス</h2>
         <div class="status-bar">

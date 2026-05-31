@@ -12,6 +12,7 @@
 
 import type { EvenAppBridge, EvenHubEvent } from '@evenrealities/even_hub_sdk'
 import type { RunState } from '../run/state'
+import type { DisplayUnit } from '../run/format'
 
 export type RendererKind = 'text' | 'image'
 
@@ -42,8 +43,8 @@ export interface RendererPort {
 
   /** bridge に container 群を作成して描画準備する */
   init(bridge: EvenAppBridge, initialState: RunState): Promise<void>
-  /** 現在 state を描画する */
-  render(state: RunState, now: Date): Promise<void>
+  /** 現在 state を描画する。unit は距離・ペースの表示単位（省略時 metric）。 */
+  render(state: RunState, now: Date, unit?: DisplayUnit): Promise<void>
   /** G2 イベント購読（Tap / Double Tap / Scroll / Lifecycle）。unsubscribe を返す */
   onEvent(handler: (event: EvenHubEvent) => void): () => void
   /** 終了処理（unsubscribe + shutdown）。exitMode 既定 0（自動 cleanup） */

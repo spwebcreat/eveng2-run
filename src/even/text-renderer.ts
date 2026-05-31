@@ -10,6 +10,7 @@ import type { EvenAppBridge, EvenHubEvent } from '@evenrealities/even_hub_sdk'
 import { attachG2Hud, type ExitMode, type G2HudHandle } from './bridge'
 import { renderForState } from './render'
 import type { RunState } from '../run/state'
+import type { DisplayUnit } from '../run/format'
 import type { RendererCapabilities, RenderPolicy, RendererPort } from './renderer-port'
 
 const TEXT_CAPABILITIES: RendererCapabilities = {
@@ -38,9 +39,9 @@ export function createTextRenderer(): RendererPort {
       handle = await attachG2Hud(bridge, initialMap)
     },
 
-    async render(state: RunState, now: Date): Promise<void> {
+    async render(state: RunState, now: Date, unit: DisplayUnit = 'metric'): Promise<void> {
       if (handle === null) return
-      await handle.render(renderForState(state, now))
+      await handle.render(renderForState(state, now, unit))
     },
 
     onEvent(handler: (event: EvenHubEvent) => void): () => void {

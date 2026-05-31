@@ -14,13 +14,21 @@ import { selectRenderer } from './even/select-renderer'
 import type { RendererPort } from './even/renderer-port'
 import { RunStore, type RunState } from './run/state'
 import { startGeolocation, type GeolocationHandle } from './run/geolocation'
-import { formatDistance, formatPace, formatTime } from './run/format'
+import {
+  formatDistance,
+  formatPace,
+  formatTime,
+  distanceUnitLabel,
+  paceUnitLabel,
+} from './run/format'
 import type { StoragePort } from './storage/ports'
 import { createBrowserStorageAdapter } from './storage/browser-adapter'
 import { createSdkStorageAdapter } from './storage/sdk-adapter'
 import { appendHistory, clearHistory, loadHistory } from './storage/run-history'
 import { createEmptyHistory, type RunHistory } from './storage/types'
 import { runHistoryEntryToGpx, gpxFileName } from './export/gpx'
+import { loadSettings, saveSettings } from './settings/persistence'
+import { DEFAULT_SETTINGS, clampTargetPace, type Settings } from './settings/schema'
 
 // ---- DOM 取得（必須要素は型ガード） ----
 function $(id: string): HTMLElement {
@@ -48,14 +56,64 @@ const elStatusBridge = $('status-bridge')
 const elStatusGeo = $('status-geo')
 const elErrorNotice = $('error-notice')
 const elActionHint = $('action-hint')
+const elSettingUnit = $('set-unit') as HTMLSelectElement
+const elSettingTargetPace = $('set-target-pace') as HTMLSelectElement
+const elSettingGps = $('set-gps') as HTMLInputElement
+const elSettingInitialMode = $('set-initial-mode') as HTMLSelectElement
 
 // ---- Storage（Hub 接続後に SDK adapter へ差し替え） ----
 let storagePort: StoragePort = createBrowserStorageAdapter()
 let cachedHistory: RunHistory = createEmptyHistory()
+// 設定（単位 / 目標ペース / GPS 精度 / 表示モード初期値）。初期は既定値、起動後に永続化値をロード。
+let settings: Settings = { ...DEFAULT_SETTINGS }
 
 async function refreshHistory(): Promise<void> {
   cachedHistory = await loadHistory(storagePort)
   renderHistory()
+}
+
+/**
+ * 永続化された設定をロードして UI / 描画に反映する。
+ * 起動時と Hub 接続後（SDK storage 切替時）に呼ぶ。
+ */
+async function refreshSettings(): Promise<void> {
+  settings = await loadSettings(storagePort)
+  reflectSettingsToControls()
+  // 表示モード初期値を反映（setMode は idle 中のみ有効＝走行中は無視される）
+  store.setMode(settings.initialMode)
+  renderAll(store.getState())
+  renderHistory()
+}
+
+/** 現在の settings を設定パネルの各コントロールに反映する。 */
+function reflectSettingsToControls(): void {
+  elSettingUnit.value = settings.unit
+  elSettingTargetPace.value =
+    settings.targetPaceSecPerKm === null ? '' : String(settings.targetPaceSecPerKm)
+  elSettingGps.checked = settings.highAccuracyGps
+  elSettingInitialMode.value = settings.initialMode
+}
+
+/** 設定コントロール変更時: settings 更新 → 保存 → 即時反映（描画 / モード / GPS 精度）。 */
+function onSettingsChange(): void {
+  const tpRaw = elSettingTargetPace.value
+  settings = {
+    unit: elSettingUnit.value === 'imperial' ? 'imperial' : 'metric',
+    targetPaceSecPerKm: tpRaw === '' ? null : clampTargetPace(Number(tpRaw)),
+    highAccuracyGps: elSettingGps.checked,
+    initialMode: elSettingInitialMode.value === 'walk' ? 'walk' : 'run',
+  }
+  void saveSettings(storagePort, settings)
+  // 即時反映: 表示単位 / 表示モード初期値（idle 中のみ）
+  store.setMode(settings.initialMode)
+  renderAll(store.getState())
+  renderHistory()
+  // GPS 精度変更を反映: 計測中なら watch を新オプションで作り直す
+  if (geoHandle !== null) {
+    geoHandle.stop()
+    geoHandle = null
+    syncPositionSourceFor(store.getState())
+  }
 }
 
 // ---- 初期化（onHistorySave で reset 時に履歴保存） ----
@@ -175,6 +233,7 @@ function syncPositionSourceFor(state: RunState): void {
             elStatusGeo.textContent = `GPS エラー: ${msg}`
             store.onGeolocationError(msg)
           },
+          enableHighAccuracy: settings.highAccuracyGps,
         })
         elStatusGeo.textContent = 'GPS 取得待ち…'
       } finally {
@@ -194,7 +253,7 @@ function syncPositionSourceFor(state: RunState): void {
 // ---- G2 への描画（RendererPort 経由） ----
 function renderToG2(state: RunState, now: Date): void {
   if (renderer === null) return
-  renderer.render(state, now).catch((err: unknown) => {
+  renderer.render(state, now, settings.unit).catch((err: unknown) => {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[g2-run-hud] render failed:', msg)
     // 失敗時は bridge 側で lastSent を更新しないので次の tick で自動再送される
@@ -207,8 +266,8 @@ function renderToDom(state: RunState, renderMap: RenderMap): void {
   elHudPreview.textContent = formatHudPreview(renderMap)
 
   // メトリクス
-  elMetricDistance.textContent = `${formatDistance(state.distanceM)} km`
-  elMetricAvgPace.textContent = `${formatPace(state.averagePaceSecPerKm)}/km`
+  elMetricDistance.textContent = `${formatDistance(state.distanceM, settings.unit)} ${distanceUnitLabel(settings.unit)}`
+  elMetricAvgPace.textContent = `${formatPace(state.averagePaceSecPerKm, settings.unit)}${paceUnitLabel(settings.unit)}`
   elMetricTime.textContent = formatTime(state.elapsedMs)
 
   // ボタン状態
@@ -427,7 +486,7 @@ function createHistoryEntryElement(entry: RunHistory['entries'][number]): HTMLDe
 
   const dist = document.createElement('span')
   dist.className = 'stat-dist'
-  dist.textContent = `${formatDistance(entry.distanceM)} km`
+  dist.textContent = `${formatDistance(entry.distanceM, settings.unit)} ${distanceUnitLabel(settings.unit)}`
   stats.appendChild(dist)
 
   const time = document.createElement('span')
@@ -437,7 +496,7 @@ function createHistoryEntryElement(entry: RunHistory['entries'][number]): HTMLDe
 
   const pace = document.createElement('span')
   pace.className = 'stat-pace'
-  pace.textContent = `${formatPace(entry.averagePaceSecPerKm)}/km`
+  pace.textContent = `${formatPace(entry.averagePaceSecPerKm, settings.unit)}${paceUnitLabel(settings.unit)}`
   stats.appendChild(pace)
 
   summary.appendChild(stats)
@@ -518,10 +577,10 @@ function formatHistoryDate(ms: number): string {
 // ---- まとめて再描画（state 変化と 1 秒 tick から共通呼び出し） ----
 function renderAll(state: RunState): void {
   const now = new Date()
-  const map = renderForState(state, now)
+  const map = renderForState(state, now, settings.unit)
   renderToDom(state, map)
   if (renderer !== null) {
-    renderer.render(state, now).catch((err: unknown) => {
+    renderer.render(state, now, settings.unit).catch((err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err)
       console.error('[g2-run-hud] render failed:', msg)
     })
@@ -581,6 +640,10 @@ elBtnReset.addEventListener('click', onResetClick)
 elModeRun.addEventListener('click', onModeRunClick)
 elModeWalk.addEventListener('click', onModeWalkClick)
 elBtnHistoryClear.addEventListener('click', onHistoryClearClick)
+elSettingUnit.addEventListener('change', onSettingsChange)
+elSettingTargetPace.addEventListener('change', onSettingsChange)
+elSettingGps.addEventListener('change', onSettingsChange)
+elSettingInitialMode.addEventListener('change', onSettingsChange)
 
 // ---- EvenAppBridge 起動（F2 2 段分離） ----
 const BRIDGE_TIMEOUT_MS = 5000
@@ -640,6 +703,7 @@ async function bootstrapBridge(): Promise<void> {
     // Hub 接続後は SDK storage を優先（Hub 内 WebView でも永続化を担保）
     storagePort = createSdkStorageAdapter(bridge)
     void refreshHistory()
+    void refreshSettings()
 
     g2Unsubscribe = renderer.onEvent((event) => {
       routeEvent(event, {
@@ -673,6 +737,10 @@ async function cleanup(): Promise<void> {
     elModeRun.removeEventListener('click', onModeRunClick)
     elModeWalk.removeEventListener('click', onModeWalkClick)
     elBtnHistoryClear.removeEventListener('click', onHistoryClearClick)
+    elSettingUnit.removeEventListener('change', onSettingsChange)
+    elSettingTargetPace.removeEventListener('change', onSettingsChange)
+    elSettingGps.removeEventListener('change', onSettingsChange)
+    elSettingInitialMode.removeEventListener('change', onSettingsChange)
     document.removeEventListener('visibilitychange', onVisibilityChange)
   } catch {
     /* noop */
@@ -724,6 +792,7 @@ window.addEventListener('beforeunload', () => {
   void cleanup()
 })
 
-// 起動：bridge 接続 + 履歴初回ロード（並列）
+// 起動：bridge 接続 + 履歴 + 設定の初回ロード（並列）
 void bootstrapBridge()
 void refreshHistory()
+void refreshSettings()
