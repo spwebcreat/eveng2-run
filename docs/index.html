@@ -245,7 +245,7 @@
 
 <div class="topbar">
   <h1>G2 Run HUD <span class="sub">確認資料ハブ</span></h1>
-  <div class="right">本番 v0.4.0 / 開発 v0.5+ 準備中</div>
+  <div class="right">本番 v0.4.0 / 開発 v0.5 実装中</div>
 </div>
 
 <div class="container">
@@ -260,18 +260,31 @@
   <section class="section">
     <div class="section-head">
       <h2>現フェーズ</h2>
-      <span class="badge-phase">v0.5+ ロードマップ確定 → spike 検証中</span>
-      <span class="desc">2026-05-27 確定</span>
+      <span class="badge-phase">v0.5 実装中</span>
+      <span class="desc">2026-05-31 更新</span>
     </div>
 
     <div class="grid">
 
+      <a class="card" href="roadmap.html">
+        <div class="card-head">
+          <div class="card-title">ロードマップ（最新・実行中）</div>
+          <span class="badge recommend">現在地</span>
+        </div>
+        <div class="card-desc">最終目標と、いま着手中の v0.5（基盤固め・6 項目）を主役にした living ロードマップ。v0.6〜v1.0 と完了・保留・却下はアーカイブタブに格納。先頭に最終形の挿絵あり。更新は docs/roadmap.md を編集して再生成。</div>
+        <div class="card-meta">
+          <span>📅 2026-05-31</span>
+          <span class="dot">·</span>
+          <span>ソース: docs/roadmap.md</span>
+        </div>
+      </a>
+
       <a class="card" href="v0.5/roadmap-review.html">
         <div class="card-head">
-          <div class="card-title">v0.5+ ロードマップ判断レビュー</div>
-          <span class="badge recommend">判断済</span>
+          <div class="card-title">判断の経緯アーカイブ（旧・判断レビュー UI）</div>
+          <span class="badge no-go">アーカイブ</span>
         </div>
-        <div class="card-desc">採用 30 機能 + 4 メタ判断 / 却下 1 / 保留 1。29 機能 + メタ判断にセグメントコントロールで採用/却下/保留を返す画面。SVG 図版 7 種・Copy as prompt 機能あり。</div>
+        <div class="card-desc">採用 30 機能 + 4 メタ判断を一件ずつ採用/却下/保留で判断した当時の画面。判断は decision-log.md に確定済みのため、経緯の参照用として残置。</div>
         <div class="card-meta">
           <span>📅 2026-05-27</span>
           <span class="dot">·</span>
@@ -286,22 +299,22 @@
         </div>
         <div class="card-desc">S1 / S2 / S3 / S4 spike の状態表と、実機 GO/NO-GO 後の v0.5・v0.6・v0.9 分岐ガイド。v0.5 本実装着手判定の根拠もここに集約。</div>
         <div class="card-meta">
-          <span>📅 2026-05-27</span>
+          <span>📅 2026-05-28</span>
           <span class="dot">·</span>
-          <span>実機 GO 待ち</span>
+          <span>S1 / S4 GO 確定</span>
         </div>
       </a>
 
       <a class="card" href="v0.5/spike-results/manual-verify.html">
         <div class="card-head">
           <div class="card-title">spike 実機検証手順</div>
-          <span class="badge important">作業中</span>
+          <span class="badge recommend">完了</span>
         </div>
         <div class="card-desc">spike-builds/ の ehpk 2 個を Hub Portal にアップロードする手順。S1 (0.5.0) → S4 (0.5.1) 順、別 app_id、GO 判定基準のチェックリスト付き。</div>
         <div class="card-meta">
-          <span>📅 2026-05-27</span>
+          <span>📅 2026-05-28</span>
           <span class="dot">·</span>
-          <span>S1 + S4 アップロード待ち</span>
+          <span>S1 / S4 GO 確定済</span>
         </div>
       </a>
 
@@ -361,7 +374,7 @@
 
 <footer>
   G2 Run HUD · Even Realities G2 / Even Hub Plugin<br>
-  最終更新 2026-05-27 ·
+  最終更新 2026-05-31 ·
   リポジトリ <code>even-g2-run</code> ·
   資料は <code>docs/</code> 配下に Markdown で SSOT 化、本ハブから派生 HTML を辿る運用。
 </footer>

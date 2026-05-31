@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>G2 Run HUD ロードマップ</title>
+<style>
+:root {
+  --bg: #fafafa;
+  --fg: #1a1a1a;
+  --muted: #6a737d;
+  --accent: #4a6cf7;
+  --border: #e1e4e8;
+  --card-bg: #ffffff;
+  --code-bg: #f6f8fa;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif; font-size: 16px; line-height: 1.7; }
+.container { max-width: 920px; margin: 0 auto; padding: 24px; }
+
+header.site { position: sticky; top: 0; z-index: 10; background: var(--card-bg); border-bottom: 1px solid var(--border); box-shadow: var(--shadow); }
+header.site .inner { max-width: 920px; margin: 0 auto; padding: 12px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+header.site h1 { font-size: 19px; margin: 0; flex: 1 1 auto; }
+header.site .meta { color: var(--muted); font-size: 13px; }
+
+h2 { font-size: 22px; margin-top: 36px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+h3 { font-size: 17px; margin-top: 24px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+ul { padding-left: 1.4em; }
+li { margin: 4px 0; }
+
+.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin: 24px 0 16px; }
+.tab-btn { padding: 10px 16px; border: 0; background: transparent; cursor: pointer; font-size: 15px; border-bottom: 3px solid transparent; color: var(--fg); }
+.tab-btn[aria-selected="true"] { border-bottom-color: var(--accent); font-weight: 600; }
+.tab-panel[aria-hidden="true"] { display: none; }
+
+details.acc { border: 1px solid var(--border); border-radius: var(--radius); margin: 8px 0; padding: 8px 12px; background: var(--card-bg); }
+details.acc summary { cursor: pointer; font-weight: 500; }
+details.acc.done { border-left: 4px solid #2e9b54; background: #f5fcf7; }
+details.acc summary .chip-done { margin-left: 6px; }
+
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+th { background: var(--code-bg); }
+pre { background: var(--code-bg); padding: 12px; border-radius: var(--radius); overflow-x: auto; }
+code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 0.92em; }
+pre code { background: transparent; padding: 0; }
+
+figure { margin: 16px 0; text-align: center; }
+figure img { max-width: 100%; height: auto; border-radius: var(--radius); box-shadow: var(--shadow); }
+figcaption { color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+.chip-done { background: #d4f4dd; color: #1a6b2e; padding: 2px 10px; border-radius: 12px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.chip-done::before { content: "✓ "; }
+.chip-todo { background: #ececec; color: #666; padding: 2px 10px; border-radius: 12px; font-size: 13px; }
+.chip-wip { background: #fff4c2; color: #6b5a1a; padding: 2px 10px; border-radius: 12px; font-size: 13px; }
+.chip-blue { background: #d4e4ff; color: #1a3b6b; padding: 2px 8px; border-radius: 12px; font-size: 13px; }
+
+.spotlight { background: #fff; border: 2px solid var(--accent); border-radius: var(--radius); padding: 16px 20px; margin: 16px 0; }
+.tldr { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 20px; margin: 16px 0 8px; }
+.tldr h2 { margin-top: 0; border: 0; padding: 0; font-size: 18px; }
+.tldr .now { font-weight: 600; }
+.row-now { background: #eef3ff; }
+.row-now td, .row-now th { font-weight: 600; }
+
+.about { margin-top: 40px; padding: 14px 18px; background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--muted); font-size: 13px; }
+.about p { margin: 6px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 28px 0; }
+
+@media print {
+  .tabs { display: none; }
+  .tab-panel { display: block !important; }
+  header.site { position: static; }
+  details.acc[open] summary { page-break-after: avoid; }
+  details.acc { page-break-inside: avoid; }
+  details.acc > * { display: revert !important; }
+  table, pre, figure { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="inner">
+    <h1>G2 Run HUD ロードマップ</h1>
+    <span class="chip-blue">現在地: v0.5 実装中</span>
+    <span class="meta">最終更新: 2026-05-31</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- TL;DR -->
+  <section class="tldr" aria-label="TL;DR">
+    <h2>TL;DR（現在地）</h2>
+    <p class="now">v0.5 実装中（6 項目中 3 項目が実装済み）。</p>
+    <p>走りながらグラスに距離・ペース・時間を映し、走り終わったらスマホで振り返る「ランニングの相棒」を目指します。文字 HUD（v0.4.0）が実機で動いている段階から、v1.0 まで全 7 フェーズ・約 6 ヶ月を見込んでいます。</p>
+    <table>
+      <thead>
+        <tr><th>フェーズ</th><th>期間目安</th><th>ひとことで言うと</th><th>状態</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>v0.5-spike</td><td>1 週</td><td>先行検証（画像表示・マイク）</td><td><span class="chip-done">完了</span></td></tr>
+        <tr class="row-now"><td>v0.5</td><td>2 週</td><td>基盤固め（文字 HUD 改善 + 土台づくり）</td><td><span class="chip-wip">実装中（3/6 実装済み）</span></td></tr>
+        <tr><td>v0.6</td><td>3 週</td><td>画像 HUD（グラフィカル化）</td><td><span class="chip-todo">予定</span></td></tr>
+        <tr><td>v0.7</td><td>1 ヶ月</td><td>スマホ UI を React 化</td><td><span class="chip-todo">予定</span></td></tr>
+        <tr><td>v0.8</td><td>1 ヶ月</td><td>ワークアウトのプラン作成・実行</td><td><span class="chip-todo">予定</span></td></tr>
+        <tr><td>v0.9</td><td>1 ヶ月</td><td>外部センサー・音声操作・Strava</td><td><span class="chip-todo">予定</span></td></tr>
+        <tr><td>v1.0</td><td>1 ヶ月</td><td>走行後サマリ・オンボーディング・公開仕上げ</td><td><span class="chip-todo">予定</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- TABS -->
+  <div class="tabs" role="tablist" aria-label="ロードマップの章">
+    <button class="tab-btn" role="tab" id="tab-roadmap" aria-controls="panel-roadmap" aria-selected="true" tabindex="0">ロードマップ</button>
+    <button class="tab-btn" role="tab" id="tab-archive" aria-controls="panel-archive" aria-selected="false" tabindex="-1">アーカイブ</button>
+  </div>
+
+  <!-- ============ TAB 1: ロードマップ ============ -->
+  <section class="tab-panel" role="tabpanel" id="panel-roadmap" aria-labelledby="tab-roadmap" aria-hidden="false">
+
+    <h2>最終目標</h2>
+
+    <figure>
+      <img src="images/roadmap-goal.png" alt="最終目標の全体像。グラスに距離・ペース・時間を表示しながら走り、走った後はスマホで振り返る。文字表示から画像HUD・音声操作・Strava連携へ育つ流れ。">
+      <figcaption>最終形のイメージ。文字表示から画像HUD・音声操作・Strava連携へ育てる</figcaption>
+    </figure>
+
+    <p>走りながらグラスに距離・ペース・時間を映し、走り終わったらスマホで振り返る。文字だけの表示から始めて、画像の HUD・音声での操作・Strava 連携まで備えた「ランニングの相棒」を v1.0 で完成させます。</p>
+    <p>いまは v0.4.0（文字 HUD）が実機で動いている段階です。ここから v1.0 まで、全 7 フェーズ・約 6 ヶ月（副業ペースで週 10〜15 時間）を見込んでいます。</p>
+
+    <table>
+      <thead>
+        <tr><th>フェーズ</th><th>期間目安</th><th>ひとことで言うと</th><th>状態</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>v0.5-spike</td><td>1 週</td><td>先行検証（画像表示・マイク）</td><td><span class="chip-done">完了</span></td></tr>
+        <tr class="row-now"><td>v0.5</td><td>2 週</td><td>基盤固め（文字 HUD 改善 + 土台づくり）</td><td><span class="chip-wip">実装中（3/6 実装済み）</span></td></tr>
+        <tr><td>v0.6</td><td>3 週</td><td>画像 HUD（グラフィカル化）</td><td><span class="chip-todo">予定</span></td></tr>
+        <tr><td>v0.7</td><td>1 ヶ月</td><td>スマホ UI を React 化</td><td><span class="chip-todo">予定</span></td></tr>
+        <tr><td>v0.8</td><td>1 ヶ月</td><td>ワークアウトのプラン作成・実行</td><td><span class="chip-todo">予定</span></td></tr>
+        <tr><td>v0.9</td><td>1 ヶ月</td><td>外部センサー・音声操作・Strava</td><td><span class="chip-todo">予定</span></td></tr>
+        <tr><td>v1.0</td><td>1 ヶ月</td><td>走行後サマリ・オンボーディング・公開仕上げ</td><td><span class="chip-todo">予定</span></td></tr>
+      </tbody>
+    </table>
+
+    <hr>
+
+    <!-- v0.5 主役セクション -->
+    <section class="spotlight" aria-label="いま取り組んでいる v0.5">
+      <h2 style="margin-top:0;border:0;padding:0;">いま: v0.5（基盤固め・実装中）</h2>
+
+      <figure>
+        <img src="images/roadmap-v05.png" alt="いまのv0.5で作るもの。中央の基盤づくりから、ロック中も正確・描画の土台・設定画面・GPX書き出し・心拍UI撤去・文字のお掃除の6項目が枝分かれする。">
+        <figcaption>v0.5 は派手な新機能より、後で効く土台を固める回</figcaption>
+      </figure>
+
+      <p>文字 HUD の弱点を直しつつ、これからのフェーズで効いてくる「土台」を作るフェーズです。新しい見た目より、後から効く基盤を固める回と位置づけています。全 6 項目。</p>
+
+      <p><strong>進捗（2026-05-31 時点）: 6 項目中 3 項目を実装済み（ビルド + ブラウザ動作確認済み・旦那様の実機 QA 待ち）。残り 3 項目は未着手。</strong></p>
+
+      <p>状態の見方:</p>
+      <ul>
+        <li><strong>完了</strong> = 実機 QA まで通って確定したもの</li>
+        <li><strong>実装済み</strong> = コードは完成し、ビルドとブラウザ動作確認まで済んだもの。旦那様の実機 QA（R-1〜R-10 等）で確認できたら「完了」に上げる</li>
+        <li><strong>未着手</strong> = これから着手</li>
+      </ul>
+
+      <table>
+        <thead>
+          <tr><th>#</th><th>項目</th><th>状態</th><th>何のため</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>ロック中の挙動を強化（QA）</td><td><span class="chip-todo">未着手</span></td><td>スマホをロックしても距離と時間がずれない</td></tr>
+          <tr><td>2</td><td>描画ポートの抽象化</td><td><span class="chip-done">実装済み</span></td><td>v0.6 で画像 HUD に切り替えられるようにする</td></tr>
+          <tr><td>3</td><td>設定画面を新設</td><td><span class="chip-todo">未着手</span></td><td>単位・目標ペース・GPS 精度をスマホで設定</td></tr>
+          <tr><td>4</td><td>GPX 書き出し</td><td><span class="chip-todo">未着手</span></td><td>走行ログを書き出して Strava 等に手動投稿</td></tr>
+          <tr><td>5</td><td>心拍 UI を撤去</td><td><span class="chip-done">実装済み</span></td><td>取得できない心拍の「嘘表示」を物理削除</td></tr>
+          <tr><td>6</td><td>文字のお掃除</td><td><span class="chip-done">実装済み</span></td><td>絵文字・非対応文字を表示前に除去してエラー予防</td></tr>
+        </tbody>
+      </table>
+
+      <p>各項目の詳しい中身は折りたたみに入れています（正式な実装手順は <code>docs/v0.5/implementation-plan.md</code>）。</p>
+
+      <details class="acc">
+        <summary>1. ロック中の挙動を強化（QA）</summary>
+        <p>スマホをロックしたりアプリを背面に回すと、iOS は数秒で JavaScript の実行を止めます。すると位置取得が止まり、経過時間と距離がずれます。Wake Lock の再取得・復帰時の時間補正・Service Worker 導入（オフライン審査対策）で、ロック 5 分／10 分／30 分でもずれない状態を目指します。完了条件は手動 QA で L-1〜L-6 と既存機能 R-1〜R-10 が全て合格すること。</p>
+      </details>
+
+      <details class="acc done">
+        <summary>2. 描画ポートの抽象化 <span class="chip-done">実装済み・実機QA待ち</span></summary>
+        <p>いまの文字描画を <code>RendererPort</code> という共通の入り口の裏に隠し、v0.6 で画像の描画に差し替えられるようにします。v0.5 の時点では文字描画だけ完成させ、<code>?renderer=image</code> を指定したときは「未実装」と表示して文字描画にフォールバックします。既存機能は v0.4.0 と完全に同じ動作を維持します。</p>
+        <p>実装メモ（2026-05-31）: <code>src/even/renderer-port.ts</code>（port 定義）・<code>text-renderer.ts</code>（text 実装）・<code>select-renderer.ts</code>（URL クエリ選択）を新設し、<code>main.ts</code> を port 経由に切替。ビルドとブラウザ動作確認済み。</p>
+      </details>
+
+      <details class="acc">
+        <summary>3. 設定画面を新設</summary>
+        <p>単位（メートル法／ヤード法）・目標ペース・GPS 精度・表示モード初期値をスマホ側の折りたたみパネルに集約します。v0.7 で React 化する予定なので、v0.5 では素の HTML と最小限の JavaScript で作ります。設定は即時反映、再読み込み不要。</p>
+      </details>
+
+      <details class="acc">
+        <summary>4. GPX 書き出し</summary>
+        <p>走行履歴を GPX 形式で書き出し、Strava 等へ手動投稿できるようにします。今の履歴には走行中の位置点が入っていないため、保存形式を v2 に上げて走行中に 5 秒ごとの位置点を記録する処理も含めます。古い v0.4.0 のデータは「サマリのみの GPX」として書き出せます。位置点は端末内のみに保存し、外部送信は手動書き出し時だけです。</p>
+      </details>
+
+      <details class="acc done">
+        <summary>5. 心拍 UI を撤去 <span class="chip-done">実装済み・実機QA待ち</span></summary>
+        <p>SDK に心拍を取得する API が無いため、内蔵の心拍表示は実態のない「嘘 UI」です。グラス・スマホ両方から物理的に削除します。将来 v0.9 で外部 Bluetooth センサーから取る形で復活させる前提で、型の予約枠（<code>externalHr</code>）と表示枠だけ残します。</p>
+        <p>実装メモ（2026-05-31）: グラス container を 8 個から 7 個に削減し、<code>render.ts</code> / <code>bridge.ts</code> / <code>state.ts</code> / <code>main.ts</code> / スマホ側 <code>index.html</code> から心拍表示を物理削除。container ID 15 と型 <code>externalHr</code> を v0.9 BLE 用に予約。ブラウザでグラスプレビューと計測データから心拍が消えたことを確認済み。</p>
+      </details>
+
+      <details class="acc done">
+        <summary>6. 文字のお掃除（サニタイズ） <span class="chip-done">実装済み・実機QA待ち</span></summary>
+        <p>絵文字や未対応の文字が表示処理に渡る前に取り除き、SDK のエラーを予防します。既存の <code>cleanForG2Safe</code> 安全ラッパー経由で適用します（<code>even-toolkit</code> の素の <code>cleanForG2</code> は <code>▶◀●○</code> や前後の空白まで壊すため直接使わない）。<code>RUN ▶</code> や全角スペースの中央寄せなど、既存表示は変えません。</p>
+        <p>実装メモ（2026-05-31）: <code>bridge.ts</code> の描画チョークポイント（全 text container の送信直前）で <code>cleanForG2Safe</code> を適用。安全ラッパーは自己完結実装のため <code>even-toolkit</code> 依存は追加せず。ブラウザで <code>▶ ● ○</code> が壊れないことを確認済み。</p>
+      </details>
+
+      <p>実装順序の目安は、第 1 週で「描画ポート + 心拍撤去」をまとめて、続けて「ロック中 QA」。第 2 週で「設定画面 → GPX → 文字のお掃除」、最後に統合テストと v0.5.0 リリース準備。</p>
+    </section>
+
+    <hr>
+
+    <h2>次: v0.6（画像 HUD）</h2>
+    <p>文字表示から画像ベースの HUD へ進化させるフェーズ。先行検証 S1（2×2 タイルでの画像表示）は実機で合格済みです。着手前に S2（画像更新の遅延計測）の実施が必須です。</p>
+
+    <details class="acc">
+      <summary>v0.6 の 5 項目を見る</summary>
+      <ul>
+        <li>スプラッシュ画面のグラフィカル化</li>
+        <li>ペースの推移グラフ（ラップ完了時に更新）</li>
+        <li>ミニマップ（5 秒ごと更新）</li>
+        <li>公式の 191 アイコン採用</li>
+        <li>ラップサマリのグラフ化</li>
+      </ul>
+      <p>着手前タスク: S2（画像更新の遅延計測。1Hz／状態変化のみ／200ms の 3 パターンを各 30 分連続で計測）。</p>
+    </details>
+
+    <hr>
+
+    <h2>その先: v0.7 → v1.0</h2>
+
+    <details class="acc">
+      <summary>v0.7（スマホ UI を React 化・1 ヶ月）</summary>
+      <ul>
+        <li>React + Vite + <code>even-toolkit/web</code> 導入（スマホ UI のみ。グラス側は対象外）</li>
+        <li>Calendar／LineChart／Timeline／StatGrid といった表示部品</li>
+        <li>履歴の保存先を IndexedDB へ移行</li>
+        <li>グラス画面のルーター化（多画面対応）</li>
+      </ul>
+    </details>
+
+    <details class="acc">
+      <summary>v0.8（ワークアウトのプラン作成・実行・1 ヶ月）</summary>
+      <ul>
+        <li>スマホでワークアウトのプラン作成（ScrollPicker）</li>
+        <li>グラスでプラン実行（タイマー表示）</li>
+        <li>目標ペースとの差分を大きく表示</li>
+      </ul>
+      <p>却下: シューズ管理・走行距離追跡（v1.0 以降も復活させない。再検討する場合は明示の指示が必要）。</p>
+    </details>
+
+    <details class="acc">
+      <summary>v0.9（外部センサー・音声操作・Strava・1 ヶ月）</summary>
+      <ul>
+        <li>Web Bluetooth で外部心拍センサー連携</li>
+        <li>Strava OAuth + 書き出し（バックエンドのプロキシ経由）</li>
+        <li>G2 マイクでの音声コマンド（"pause" / "lap" / "next"）。先行検証 S4（マイク PCM ストリーム）は実機で合格済み</li>
+        <li>走行後の音声メモ</li>
+      </ul>
+    </details>
+
+    <details class="acc">
+      <summary>v1.0（仕上げ・公開・1 ヶ月）</summary>
+      <ul>
+        <li>Claude API のバックエンドプロキシで走行後サマリ生成</li>
+        <li>スマホスピーカーでの音声通知</li>
+        <li>オンボーディングフロー</li>
+        <li>Hub Portal 提出まわりの整理</li>
+      </ul>
+    </details>
+
+    <hr>
+
+    <h2>このロードマップの更新ルール</h2>
+    <ul>
+      <li>各フェーズの状態が変わったら、本ファイル（<code>docs/roadmap.md</code>）を編集して <code>docs/roadmap.html</code> を再生成する</li>
+      <li>フェーズ着手前には、そのフェーズ用の mini decision-log と mini implementation-plan を新規作成する（<code>docs/v0.6-decision-log.md</code> 等）</li>
+      <li>フェーズ着手時には観察リスト（<code>docs/v0.5/watch-list.md</code>）を読み返し、復活させる機能が無いか確認する</li>
+    </ul>
+
+  </section>
+
+  <!-- ============ TAB 2: アーカイブ ============ -->
+  <section class="tab-panel" role="tabpanel" id="panel-archive" aria-labelledby="tab-archive" aria-hidden="true">
+
+    <h2>アーカイブ</h2>
+    <p>普段は見なくてよい確定事項です。畳んでおきます。</p>
+
+    <details class="acc">
+      <summary>完了済み: v0.5-spike（先行検証 4 件）</summary>
+      <table>
+        <thead>
+          <tr><th>検証</th><th>内容</th><th>結果</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>S1</td><td>2×2 タイルで 576×288 の画像を実機表示</td><td>合格（v0.6 画像 HUD 継続可）</td></tr>
+          <tr><td>S2</td><td>画像更新の遅延計測</td><td>未着手（v0.6 着手前に必須）</td></tr>
+          <tr><td>S3</td><td><code>even-toolkit</code> のビルド検証</td><td>採用確定（<code>cleanForG2Safe</code> 経由）</td></tr>
+          <tr><td>S4</td><td>G2 マイクの PCM ストリーム</td><td>合格（5 分 / n=2979 / 31,776 B/s = 理論値ど真ん中。v0.9 音声操作へ）</td></tr>
+        </tbody>
+      </table>
+      <p>検証の途中で「先行検証アプリのはずが本番 UI が起動する」事故が発生し、Codex の第二意見とクリーンビルド方針・パッケージ前の検査ゲートで再発防止を確立しました（詳細は <code>.claude/rules/learning/core.md</code>）。</p>
+    </details>
+
+    <details class="acc">
+      <summary>保留中: 観察リスト（公式の対応待ち・6 件）</summary>
+      <p>「諦めた機能」ではなく「観察リスト」として別管理します。Even Hub SDK のリリースノートを節目ごとに確認し、対応 API が追加されたら再評価します（管理ファイル: <code>docs/v0.5/watch-list.md</code>）。</p>
+      <ul>
+        <li>G2 スピーカーでの読み上げ（SDK に音声出力 API が出たら）</li>
+        <li>Spotify / Apple Music の操作（音楽制御 API が出たら）</li>
+        <li>ターンバイターン・ナビ（地図 SDK／地図タイル配信が出たら）</li>
+        <li>通知転送（SMS / LINE 等。スマホ通知 API が出たら）</li>
+        <li>ソーシャル機能（運用コストの問題が解決したら。v2 以降）</li>
+        <li>内蔵心拍センサー（v0.9 で外部 Bluetooth による代替を採用済み。本体内蔵が出ても上書きしない）</li>
+      </ul>
+    </details>
+
+    <details class="acc">
+      <summary>却下: シューズ管理・走行距離追跡</summary>
+      <p>優先度判断により却下。v1.0 以降も復活させません（再議論したい場合は旦那様から明示の指示）。</p>
+    </details>
+
+    <details class="acc">
+      <summary>判断の経緯アーカイブ（旧・判断レビュー画面）</summary>
+      <p>採用 30 機能 + メタ判断 4 件を一件ずつ採用／却下／保留で判断した当時の画面は <a href="v0.5/roadmap-review.html"><code>docs/v0.5/roadmap-review.html</code></a> に残してあります。判断はすでに <code>docs/v0.5/decision-log.md</code> に確定記録済みのため、経緯の参照用です。</p>
+    </details>
+
+  </section>
+
+  <!-- フッタ: このページについて -->
+  <aside class="about" aria-label="このページについて">
+    <p><strong>このページについて</strong></p>
+    <p>これは人間向けロードマップの派生ビューです。ソースは <code>docs/roadmap.md</code> で、編集したら <code>docs/roadmap.html</code> を再生成します（<code>/spec-to-html docs/roadmap.md docs/roadmap.html</code>）。</p>
+    <p>判断の経緯（なぜこの機能を採用・却下したか）の正本は <code>docs/v0.5/decision-log.md</code>、v0.5 の実装詳細は <code>docs/v0.5/implementation-plan.md</code> にあります。</p>
+  </aside>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const tabs = document.querySelectorAll('[role="tab"]');
+  const panels = document.querySelectorAll('[role="tabpanel"]');
+  function activate(idx) {
+    tabs.forEach((t, i) => { t.setAttribute('aria-selected', i === idx ? 'true' : 'false'); t.setAttribute('tabindex', i === idx ? '0' : '-1'); });
+    panels.forEach((p, i) => p.setAttribute('aria-hidden', i === idx ? 'false' : 'true'));
+  }
+  tabs.forEach((tab, idx) => {
+    tab.addEventListener('click', () => activate(idx));
+    tab.addEventListener('keydown', (e) => {
+      const last = tabs.length - 1; let next = idx;
+      if (e.key === 'ArrowRight') next = idx === last ? 0 : idx + 1;
+      else if (e.key === 'ArrowLeft') next = idx === 0 ? last : idx - 1;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = last;
+      else return;
+      e.preventDefault(); activate(next); tabs[next].focus();
+    });
+  });
+  activate(0);
+});
+</script>
+
+</body>
+</html>
