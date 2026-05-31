@@ -96,7 +96,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 28px 0; }
   <!-- TL;DR -->
   <section class="tldr" aria-label="TL;DR">
     <h2>TL;DR（現在地）</h2>
-    <p class="now">v0.5 実装中（6 項目中 3 項目が実装済み）。</p>
+    <p class="now">v0.5 実装中（6/6 実装済み・実機QA待ち）。</p>
     <p>走りながらグラスに距離・ペース・時間を映し、走り終わったらスマホで振り返る「ランニングの相棒」を目指します。文字 HUD（v0.4.0）が実機で動いている段階から、v1.0 まで全 7 フェーズ・約 6 ヶ月を見込んでいます。</p>
     <table>
       <thead>
@@ -104,7 +104,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 28px 0; }
       </thead>
       <tbody>
         <tr><td>v0.5-spike</td><td>1 週</td><td>先行検証（画像表示・マイク）</td><td><span class="chip-done">完了</span></td></tr>
-        <tr class="row-now"><td>v0.5</td><td>2 週</td><td>基盤固め（文字 HUD 改善 + 土台づくり）</td><td><span class="chip-wip">実装中（3/6 実装済み）</span></td></tr>
+        <tr class="row-now"><td>v0.5</td><td>2 週</td><td>基盤固め（文字 HUD 改善 + 土台づくり）</td><td><span class="chip-wip">実装中（6/6 実装済み・実機QA待ち）</span></td></tr>
         <tr><td>v0.6</td><td>3 週</td><td>画像 HUD（グラフィカル化）</td><td><span class="chip-todo">予定</span></td></tr>
         <tr><td>v0.7</td><td>1 ヶ月</td><td>スマホ UI を React 化</td><td><span class="chip-todo">予定</span></td></tr>
         <tr><td>v0.8</td><td>1 ヶ月</td><td>ワークアウトのプラン作成・実行</td><td><span class="chip-todo">予定</span></td></tr>
@@ -139,7 +139,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 28px 0; }
       </thead>
       <tbody>
         <tr><td>v0.5-spike</td><td>1 週</td><td>先行検証（画像表示・マイク）</td><td><span class="chip-done">完了</span></td></tr>
-        <tr class="row-now"><td>v0.5</td><td>2 週</td><td>基盤固め（文字 HUD 改善 + 土台づくり）</td><td><span class="chip-wip">実装中（3/6 実装済み）</span></td></tr>
+        <tr class="row-now"><td>v0.5</td><td>2 週</td><td>基盤固め（文字 HUD 改善 + 土台づくり）</td><td><span class="chip-wip">実装中（6/6 実装済み・実機QA待ち）</span></td></tr>
         <tr><td>v0.6</td><td>3 週</td><td>画像 HUD（グラフィカル化）</td><td><span class="chip-todo">予定</span></td></tr>
         <tr><td>v0.7</td><td>1 ヶ月</td><td>スマホ UI を React 化</td><td><span class="chip-todo">予定</span></td></tr>
         <tr><td>v0.8</td><td>1 ヶ月</td><td>ワークアウトのプラン作成・実行</td><td><span class="chip-todo">予定</span></td></tr>
@@ -161,7 +161,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 28px 0; }
 
       <p>文字 HUD の弱点を直しつつ、これからのフェーズで効いてくる「土台」を作るフェーズです。新しい見た目より、後から効く基盤を固める回と位置づけています。全 6 項目。</p>
 
-      <p><strong>進捗（2026-05-31 時点）: 6 項目中 3 項目を実装済み（ビルド + ブラウザ動作確認済み・旦那様の実機 QA 待ち）。残り 3 項目は未着手。</strong></p>
+      <p><strong>進捗（2026-05-31 時点）: 6 項目すべて実装済み（ビルド + ブラウザ動作確認済み）。旦那様の実機 QA（R-1〜R-10 / L-1〜L-6）を通れば v0.5.0 リリースへ。</strong></p>
 
       <p>状態の見方:</p>
       <ul>
@@ -175,10 +175,10 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 28px 0; }
           <tr><th>#</th><th>項目</th><th>状態</th><th>何のため</th></tr>
         </thead>
         <tbody>
-          <tr><td>1</td><td>ロック中の挙動を強化（QA）</td><td><span class="chip-todo">未着手</span></td><td>スマホをロックしても距離と時間がずれない</td></tr>
+          <tr><td>1</td><td>ロック中の挙動を強化（QA）</td><td><span class="chip-done">実装済み</span></td><td>スマホをロックしても距離と時間がずれない</td></tr>
           <tr><td>2</td><td>描画ポートの抽象化</td><td><span class="chip-done">実装済み</span></td><td>v0.6 で画像 HUD に切り替えられるようにする</td></tr>
-          <tr><td>3</td><td>設定画面を新設</td><td><span class="chip-todo">未着手</span></td><td>単位・目標ペース・GPS 精度をスマホで設定</td></tr>
-          <tr><td>4</td><td>GPX 書き出し</td><td><span class="chip-todo">未着手</span></td><td>走行ログを書き出して Strava 等に手動投稿</td></tr>
+          <tr><td>3</td><td>設定画面を新設</td><td><span class="chip-done">実装済み</span></td><td>単位・目標ペース・GPS 精度をスマホで設定</td></tr>
+          <tr><td>4</td><td>GPX 書き出し</td><td><span class="chip-done">実装済み</span></td><td>走行ログを書き出して Strava 等に手動投稿</td></tr>
           <tr><td>5</td><td>心拍 UI を撤去</td><td><span class="chip-done">実装済み</span></td><td>取得できない心拍の「嘘表示」を物理削除</td></tr>
           <tr><td>6</td><td>文字のお掃除</td><td><span class="chip-done">実装済み</span></td><td>絵文字・非対応文字を表示前に除去してエラー予防</td></tr>
         </tbody>
@@ -186,9 +186,10 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 28px 0; }
 
       <p>各項目の詳しい中身は折りたたみに入れています（正式な実装手順は <code>docs/v0.5/implementation-plan.md</code>）。</p>
 
-      <details class="acc">
-        <summary>1. ロック中の挙動を強化（QA）</summary>
+      <details class="acc done">
+        <summary>1. ロック中の挙動を強化（QA） <span class="chip-done">実装済み・実機QA待ち</span></summary>
         <p>スマホをロックしたりアプリを背面に回すと、iOS は数秒で JavaScript の実行を止めます。すると位置取得が止まり、経過時間と距離がずれます。Wake Lock の再取得・復帰時の時間補正・Service Worker 導入（オフライン審査対策）で、ロック 5 分／10 分／30 分でもずれない状態を目指します。完了条件は手動 QA で L-1〜L-6 と既存機能 R-1〜R-10 が全て合格すること。</p>
+        <p>実装メモ（2026-05-31）: tick を <code>runTick()</code> に抽出し画面復帰時に呼んで凍結中の経過時間を即時補正。Wake Lock を最大 3 回 retry に強化。復帰時ステータスを「GPS 復帰中…」に。<code>public/sw.js</code> を network-first（オンライン時は常に最新取得＝古い UI 残存を防ぐ）で新設。<strong>実機 QA（L-1〜L-6 / R-1〜R-10、特に L-6 オフライン審査）は旦那様の確認待ち。</strong></p>
       </details>
 
       <details class="acc done">
@@ -197,14 +198,16 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 28px 0; }
         <p>実装メモ（2026-05-31）: <code>src/even/renderer-port.ts</code>（port 定義）・<code>text-renderer.ts</code>（text 実装）・<code>select-renderer.ts</code>（URL クエリ選択）を新設し、<code>main.ts</code> を port 経由に切替。ビルドとブラウザ動作確認済み。</p>
       </details>
 
-      <details class="acc">
-        <summary>3. 設定画面を新設</summary>
+      <details class="acc done">
+        <summary>3. 設定画面を新設 <span class="chip-done">実装済み・実機QA待ち</span></summary>
         <p>単位（メートル法／ヤード法）・目標ペース・GPS 精度・表示モード初期値をスマホ側の折りたたみパネルに集約します。v0.7 で React 化する予定なので、v0.5 では素の HTML と最小限の JavaScript で作ります。設定は即時反映、再読み込み不要。</p>
+        <p>実装メモ（2026-05-31）: <code>src/settings/</code>（schema / persistence）を新設し companion に折り畳みパネルを追加。単位を <code>format.ts</code> に追加し描画全体に伝播（既定 metric で従来挙動維持）。ブラウザで単位切替が companion・グラス HUD プレビュー両方に即時反映され localStorage 永続化されることを確認。目標ペースは保存のみ（差分表示は v0.6）。</p>
       </details>
 
-      <details class="acc">
-        <summary>4. GPX 書き出し</summary>
+      <details class="acc done">
+        <summary>4. GPX 書き出し <span class="chip-done">実装済み・実機QA待ち</span></summary>
         <p>走行履歴を GPX 形式で書き出し、Strava 等へ手動投稿できるようにします。今の履歴には走行中の位置点が入っていないため、保存形式を v2 に上げて走行中に 5 秒ごとの位置点を記録する処理も含めます。古い v0.4.0 のデータは「サマリのみの GPX」として書き出せます。位置点は端末内のみに保存し、外部送信は手動書き出し時だけです。</p>
+        <p>実装メモ（2026-05-31）: 保存形式を schema v2 化（TrackPoint 追加）、走行中 5 秒ごとに位置点を記録（最大 10,000 点）。<code>src/export/gpx.ts</code> で GPX 1.1 に変換し、各履歴に書き出しボタンを追加。生成 GPX を xmlstarlet 相当（xmllint）で well-formed 確認済み。<strong>Strava へのアップロード地図表示は実機での書き出し → 投稿で旦那様の確認待ち。</strong></p>
       </details>
 
       <details class="acc done">
