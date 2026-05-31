@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>G2 Run HUD v0.5.0 実機 QA チェックリスト</title>
+<style>
+  :root {
+    --bg: #fafafa;
+    --card: #ffffff;
+    --border: #e2e2e2;
+    --ink: #1c1c1c;
+    --ink-sub: #5a5a5a;
+    --pass: #2e9b54;
+    --pass-bg: #e7f5ec;
+    --fail: #c0392b;
+    --fail-bg: #fbeae8;
+    --idle: #8a8a8a;
+    --idle-bg: #f0f0f0;
+    --accent: #2b6cb0;
+    --warn: #b7791f;
+    --warn-bg: #fdf6e3;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+    line-height: 1.65;
+    font-size: 15px;
+  }
+
+  .wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 18px 80px;
+  }
+
+  /* ---------- header (sticky) ---------- */
+  header.app {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(250,250,250,0.94);
+    backdrop-filter: saturate(180%) blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .app-inner {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 12px 18px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .app-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 0.01em;
+  }
+  .app-date {
+    margin-left: auto;
+    color: var(--ink-sub);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- progress bar ---------- */
+  .progress {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 8px 18px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .counter {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: var(--card);
+  }
+  .counter b { font-size: 16px; font-variant-numeric: tabular-nums; }
+  .counter.pass { color: var(--pass); border-color: #bfe3cb; background: var(--pass-bg); }
+  .counter.fail { color: var(--fail); border-color: #f1cbc6; background: var(--fail-bg); }
+  .counter.idle { color: var(--idle); }
+  .counter.total { color: var(--ink-sub); }
+  .progress-actions { margin-left: auto; display: flex; gap: 8px; }
+
+  /* ---------- chips ---------- */
+  .chip {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.7;
+    border: 1px solid var(--border);
+    background: var(--idle-bg);
+    color: var(--ink-sub);
+    white-space: nowrap;
+  }
+  .chip.waiting { background: var(--warn-bg); color: var(--warn); border-color: #ecd9a8; }
+  .chip.pass { background: var(--pass-bg); color: var(--pass); border-color: #bfe3cb; }
+  .chip.fail { background: var(--fail-bg); color: var(--fail); border-color: #f1cbc6; }
+  .chip.info { background: #eaf2fb; color: var(--accent); border-color: #c4daf2; }
+
+  /* ---------- buttons ---------- */
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--ink);
+    padding: 6px 12px;
+    transition: background .12s, border-color .12s;
+  }
+  button:hover { background: #f3f3f3; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover { background: #245a91; }
+  button.danger { color: var(--fail); border-color: #f1cbc6; }
+  button.danger:hover { background: var(--fail-bg); }
+
+  /* ---------- sections / cards ---------- */
+  section { margin-top: 26px; }
+  h2 {
+    font-size: 17px;
+    margin: 0 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--border);
+  }
+  h2 .num {
+    display: inline-block;
+    min-width: 1.5em;
+    color: var(--accent);
+    font-weight: 800;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px 18px;
+  }
+  .card + .card { margin-top: 12px; }
+  .card.highlight { border-color: #c4daf2; box-shadow: 0 0 0 2px #eaf2fb; }
+  .card.warn { border-color: #ecd9a8; background: var(--warn-bg); }
+
+  .kv { margin: 0; }
+  .kv dt { font-size: 12px; color: var(--ink-sub); margin-top: 8px; }
+  .kv dt:first-child { margin-top: 0; }
+  .kv dd { margin: 2px 0 0; word-break: break-all; }
+
+  code {
+    font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+    background: #f0f0f0;
+    border: 1px solid #e3e3e3;
+    border-radius: 5px;
+    padding: 1px 5px;
+    font-size: 0.88em;
+    word-break: break-all;
+  }
+  .sha { font-size: 0.82em; }
+
+  ul, ol { margin: 8px 0; padding-left: 1.4em; }
+  li { margin: 4px 0; }
+  p { margin: 8px 0; }
+  .muted { color: var(--ink-sub); font-size: 13px; }
+
+  a { color: var(--accent); }
+
+  /* ---------- glasses HUD mock (3x3) ---------- */
+  .hud {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 2px;
+    background: #2b2b2b;
+    border-radius: 8px;
+    padding: 2px;
+    margin: 10px 0;
+    font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+    max-width: 480px;
+  }
+  .hud .cell {
+    background: #111;
+    color: #b9f2c4;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 13px;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hud .cell.empty { color: #444; }
+  .hud .cell.big { font-size: 15px; font-weight: 700; }
+  .hud .cap { font-size: 11px; color: var(--ink-sub); margin: 0 0 2px; }
+
+  /* ---------- check tables ---------- */
+  .check-list { display: flex; flex-direction: column; gap: 0; }
+  .check-row {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 0 14px;
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+    align-items: start;
+  }
+  .check-row:first-child { border-top: none; }
+  .check-id {
+    font-weight: 700;
+    font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+    color: var(--accent);
+    font-size: 14px;
+    padding-top: 3px;
+  }
+  .check-body .scenario { font-weight: 600; }
+  .check-body .expect { color: var(--ink-sub); font-size: 13px; margin-top: 2px; }
+  .check-controls {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .toggle-group {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .toggle-group button {
+    border: none;
+    border-right: 1px solid var(--border);
+    border-radius: 0;
+    padding: 5px 14px;
+    background: var(--card);
+    color: var(--ink-sub);
+    font-weight: 600;
+  }
+  .toggle-group button:last-child { border-right: none; }
+  .toggle-group button[aria-pressed="true"][data-state="idle"] { background: var(--idle-bg); color: var(--ink); }
+  .toggle-group button[aria-pressed="true"][data-state="pass"] { background: var(--pass); color: #fff; }
+  .toggle-group button[aria-pressed="true"][data-state="fail"] { background: var(--fail); color: #fff; }
+  .check-note {
+    flex: 1 1 200px;
+    min-width: 160px;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+  }
+  .check-note::placeholder { color: #b0b0b0; }
+
+  .check-row[data-current="pass"] { background: linear-gradient(90deg, var(--pass-bg) 0%, transparent 60%); }
+  .check-row[data-current="fail"] { background: linear-gradient(90deg, var(--fail-bg) 0%, transparent 60%); }
+
+  /* ---------- plain tables ---------- */
+  table.plain {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  table.plain th, table.plain td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  table.plain th { background: #f5f5f5; font-weight: 600; }
+  table.plain tr:last-child td { border-bottom: none; }
+
+  .note-block {
+    border-left: 3px solid var(--accent);
+    padding: 6px 0 6px 12px;
+    margin: 10px 0;
+    background: #f7fafd;
+    border-radius: 0 6px 6px 0;
+    font-size: 13.5px;
+  }
+  .note-block.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+
+  details { margin: 8px 0; }
+  summary { cursor: pointer; font-weight: 600; }
+
+  footer.app {
+    margin-top: 36px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    color: var(--ink-sub);
+    font-size: 13px;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---------- print ---------- */
+  @media print {
+    :root { --shadow: none; }
+    body { background: #fff; font-size: 12px; }
+    header.app { position: static; backdrop-filter: none; background: #fff; }
+    .progress-actions, .toast { display: none !important; }
+    .card { box-shadow: none; break-inside: avoid; }
+    section { break-inside: avoid-page; }
+    details { display: block !important; }
+    details > summary { list-style: none; }
+    .check-row { break-inside: avoid; }
+    /* チェック状態を紙に出す */
+    .toggle-group button { display: none; }
+    .toggle-group button[aria-pressed="true"] {
+      display: inline-block;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      border: 1px solid #000;
+    }
+    .toggle-group { border: none; }
+    .chip, .counter { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .hud { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    a[href]:after { content: ""; }
+    .check-note { border: 1px solid #999; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app">
+  <div class="app-inner">
+    <h1 class="app-title">G2 Run HUD v0.5.0 実機 QA チェックリスト</h1>
+    <span class="chip waiting">実機 QA 待ち</span>
+    <span class="app-date">2026-05-31</span>
+  </div>
+  <div class="progress">
+    <span class="counter pass">PASS <b id="cnt-pass">0</b></span>
+    <span class="counter fail">FAIL <b id="cnt-fail">0</b></span>
+    <span class="counter idle">未 <b id="cnt-idle">0</b></span>
+    <span class="counter total">全 <b id="cnt-total">0</b> 項目</span>
+    <span class="progress-actions">
+      <button id="btn-copy" class="primary">結果を Markdown でコピー</button>
+      <button id="btn-reset" class="danger">チェックをリセット</button>
+    </span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- 1. この ehpk について -->
+  <section id="sec-ehpk">
+    <h2><span class="num">1</span>この ehpk について</h2>
+    <div class="card highlight">
+      <dl class="kv">
+        <dt>ファイル名</dt>
+        <dd><code>g2-run-hud-0.5.0.ehpk</code></dd>
+        <dt>生成パス</dt>
+        <dd><code>/Volumes/SP-STORAGE 1TB/company/Apps/EvenG2/even-g2-run/g2-run-hud-0.5.0.ehpk</code></dd>
+        <dt>version / 生成日時</dt>
+        <dd>0.5.0 / 2026-05-31</dd>
+        <dt>SHA256</dt>
+        <dd><code class="sha">3f71672c4b300e6e2d4016b54d1a9c2128e562df21de3c608a478eb9f985e378</code></dd>
+      </dl>
+    </div>
+    <div class="card warn">
+      <p style="margin-top:0"><strong>旧 artifact 警告</strong></p>
+      <p style="margin-bottom:0">同フォルダに <code>g2-run-hud-0.4.0.ehpk</code> など旧バージョンが残っている。アップロードは必ず <strong>0.5.0</strong> を選ぶこと。万一問題があれば <code>g2-run-hud-0.4.0.ehpk</code> に戻せる（ロールバック可）。</p>
+    </div>
+  </section>
+
+  <!-- 2. アップロード手順 -->
+  <section id="sec-upload">
+    <h2><span class="num">2</span>アップロード手順</h2>
+    <div class="card">
+      <ol>
+        <li>Hub Portal の <strong>既存「G2 Run HUD」アプリ</strong>（package_id <code>com.spwebcreat.g2runhud</code>）に <strong>上書きアップロード</strong>する。</li>
+        <li>package_id が本番と同一なので、spike の時に出た <code>package_id mismatch</code> エラーは起きない（通常のバージョンアップ）。</li>
+        <li>アップロード後、iPhone Hub アプリで G2 Run HUD を起動する。</li>
+      </ol>
+      <div class="note-block">
+        新規アプリ枠ではなく <strong>既存アプリへの上書き</strong>である点に注意。新規枠に上げると package_id mismatch が再発する。
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 起動直後の期待画面 -->
+  <section id="sec-expect">
+    <h2><span class="num">3</span>起動直後の期待画面</h2>
+    <div class="card">
+      <p><strong>iPhone Hub アプリ:</strong> タイトルに「G2 Run HUD」が表示される。</p>
+      <p><strong>グラス側 HUD（3x3 風レイアウト）:</strong></p>
+      <p class="cap">上段 / 中央 / 下段</p>
+      <div class="hud" aria-label="期待される HUD レイアウト">
+        <div class="cell">00:00<br><span class="cap">経過時間</span></div>
+        <div class="cell">0.00 km<br><span class="cap">距離</span></div>
+        <div class="cell">5/31<br><span class="cap">日付時刻</span></div>
+        <div class="cell empty">&nbsp;</div>
+        <div class="cell big">START &#9664;</div>
+        <div class="cell empty">&nbsp;</div>
+        <div class="cell empty">（空き）</div>
+        <div class="cell">--'--"/km<br><span class="cap">平均ペース</span></div>
+        <div class="cell big">READY &#9654;<br>RUN &#9679;&#9675;&#9675;</div>
+      </div>
+      <div class="note-block warn">
+        <strong>v0.5 の見分け: 心拍欄が無い。</strong> 旧 v0.4.0 は下段左に「心拍数 -- bpm」があった。心拍が出ていたら古い build = アップロード反映されていない。
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. NG パターン -->
+  <section id="sec-ng">
+    <h2><span class="num">4</span>NG パターン（出たら即中止）</h2>
+    <div class="card">
+      <ul>
+        <li><strong>起動しない / 真っ黒 / クラッシュ</strong> &rarr; version と SHA256 を確認し、<code>g2-run-hud-0.4.0.ehpk</code> にロールバック。</li>
+        <li><strong>心拍欄がまだ表示される</strong> &rarr; 古い build。version 0.5.0 が反映されているか Hub Portal で確認。</li>
+        <li><strong>想定外の画面</strong> &rarr; DevTools の <code>[g2-run-hud]</code> ログを確認。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 5. DevTools 接続 -->
+  <section id="sec-devtools">
+    <h2><span class="num">5</span>DevTools 接続（補助）</h2>
+    <div class="card">
+      <ol>
+        <li>Mac の Safari &rarr; 開発メニュー &rarr; iPhone &rarr; 該当 WebView を選び Web Inspector を開く。</li>
+        <li>console に <code>[g2-run-hud]</code> プレフィックスのログ（<code>wake lock failed N times</code> / <code>service worker registration failed</code> / <code>GPX export failed</code> 等）が出る。</li>
+      </ol>
+      <div class="note-block warn">
+        注意: Even Hub アプリの WKWebView は <code>isInspectable</code> 未設定だと「調査可能なアプリケーションがありません」になる場合あり。その時は iPhone Hub アプリ画面の表示で代替判定する。
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Locked-phone QA -->
+  <section id="sec-locked">
+    <h2><span class="num">6</span>Locked-phone QA（L-1〜L-6）</h2>
+    <div class="card">
+      <div class="check-list" data-group="locked"></div>
+    </div>
+  </section>
+
+  <!-- 7. Regression -->
+  <section id="sec-regression">
+    <h2><span class="num">7</span>Regression（R-1〜R-10）</h2>
+    <p class="muted">既存機能が壊れていないかの回帰確認。</p>
+    <div class="card">
+      <div class="check-list" data-group="regression"></div>
+    </div>
+  </section>
+
+  <!-- 8. v0.5 新機能 -->
+  <section id="sec-new">
+    <h2><span class="num">8</span>v0.5 新機能の確認（V-1〜V-4）</h2>
+    <div class="card">
+      <div class="check-list" data-group="new"></div>
+    </div>
+  </section>
+
+  <!-- 9. トラブルシューティング -->
+  <section id="sec-trouble">
+    <h2><span class="num">9</span>トラブルシューティング</h2>
+    <div class="card">
+      <table class="plain">
+        <thead>
+          <tr><th>症状</th><th>原因候補</th><th>対処</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>起動しない / 真っ黒</td>
+            <td>ehpk 破損 or 反映漏れ</td>
+            <td>version / SHA 確認、<code>g2-run-hud-0.4.0.ehpk</code> にロールバック</td>
+          </tr>
+          <tr>
+            <td>心拍がまだ出る</td>
+            <td>古い build</td>
+            <td>Hub Portal で version 0.5.0 反映確認・再アップロード</td>
+          </tr>
+          <tr>
+            <td>単位が変わらない</td>
+            <td>設定保存失敗</td>
+            <td>DevTools console 確認・localStorage 確認</td>
+          </tr>
+          <tr>
+            <td>GPX が落ちてこない</td>
+            <td>ブラウザのダウンロード制約</td>
+            <td>console の <code>GPX export failed</code> 確認</td>
+          </tr>
+          <tr>
+            <td>オフラインで起動しない</td>
+            <td>Service Worker 未登録（Hub WebView 非対応の可能性）</td>
+            <td>console の <code>service worker registration failed</code> 確認。これは L-6 で要判定の既知未確認事項</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 10. 結果の保存 -->
+  <section id="sec-save">
+    <h2><span class="num">10</span>結果の保存</h2>
+    <div class="card">
+      <ul>
+        <li>上部の <strong>「結果を Markdown でコピー」</strong> を押して <code>docs/v0.5/qa-results.md</code> に貼る。</li>
+        <li>全項目 PASS なら v0.5.0 リリースへ。version は既に 0.5.0 なので、あとは Hub Description 更新のみ。</li>
+      </ul>
+      <div class="note-block">
+        チェック状態と記録欄は <code>localStorage</code>（キー <code>g2-qa-v0.5</code>）に自動保存される。リロードしても保持されるので、検証を中断しても続きから再開できる。
+      </div>
+    </div>
+  </section>
+
+  <footer class="app">
+    関連: <code>docs/v0.5/implementation-plan.md</code>（実装プラン） / <code>docs/roadmap.html</code>（ロードマップ）
+  </footer>
+
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "g2-qa-v0.5";
+
+  // ---- 検証項目データ ----
+  var ITEMS = {
+    locked: {
+      title: "Locked-phone QA",
+      noteLabels: {
+        "L-1": "誤差秒数", "L-2": "誤差秒数", "L-3": "誤差秒数",
+        "L-4": "メモ", "L-5": "メモ", "L-6": "メモ"
+      },
+      rows: [
+        ["L-1", "スマホロック 5 分 → 復帰", "経過時間の誤差 2 秒以内・距離の連続性維持"],
+        ["L-2", "スマホロック 10 分 → 復帰", "誤差 3 秒以内"],
+        ["L-3", "スマホロック 30 分 → 復帰", "誤差 5 秒以内・クラッシュなし"],
+        ["L-4", "アプリ背面 5 分 → 復帰", "GPS 再開・Wake Lock 再取得・ステータス「GPS 復帰中…」表示"],
+        ["L-5", "Wake Lock 取得失敗時", "最大 3 回 retry・最終失敗で console.warn wake lock failed N times"],
+        ["L-6", "Service Worker オフライン test", "機内モードで再起動 → キャッシュから起動成功"]
+      ]
+    },
+    regression: {
+      title: "Regression",
+      rows: [
+        ["R-1", "アプリ起動", "bridge 接続成功・HUD 初期化"],
+        ["R-2", "GPS で距離計測", "距離が増える"],
+        ["R-3", "start / pause / resume", "状態遷移正常"],
+        ["R-4", "1km ラップ完了", "LAP 通知 6 秒・履歴追加"],
+        ["R-5", "auto pause（静止検知）", "静止後に自動 pause"],
+        ["R-6", "mode 切替 run/walk", "R1 ボタンで切替（READY 中）"],
+        ["R-7", "G2 ハードボタン全種", "Tap / Double Tap / 長押し 動作"],
+        ["R-8", "アプリ終了（長押し / SYSTEM_EXIT）", "cleanup 実行・履歴保持"],
+        ["R-9", "履歴クリア", "localStorage クリア後の表示正常"],
+        ["R-10", "ページ送り（Page 1/2/3）", "各ページ正常表示"]
+      ]
+    },
+    "new": {
+      title: "v0.5 新機能",
+      rows: [
+        ["V-1", "心拍 UI 完全消失", "グラス・スマホ両方から心拍が消えている"],
+        ["V-2", "単位切替", "設定で metric ⇄ imperial → 距離・ペースの単位が即時変化（km ⇄ mi）"],
+        ["V-3", "GPX 書き出し", "履歴を開いて「GPX で書き出し」→ ファイルがダウンロードされる。可能なら Strava にアップロードして地図表示"],
+        ["V-4", "設定の永続化", "設定変更 → アプリ再起動 → 設定が保持されている"]
+      ]
+    }
+  };
+
+  var GROUP_ORDER = ["locked", "regression", "new"];
+  var STATES = ["idle", "pass", "fail"];
+  var STATE_LABEL = { idle: "未", pass: "PASS", fail: "FAIL" };
+
+  // ---- 状態ストア ----
+  var store = {}; // { "L-1": { state: "idle", note: "" }, ... }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) store = JSON.parse(raw) || {};
+    } catch (e) { store = {}; }
+    if (typeof store !== "object" || store === null) store = {};
+  }
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch (e) {}
+  }
+  function entry(id) {
+    if (!store[id]) store[id] = { state: "idle", note: "" };
+    return store[id];
+  }
+
+  // ---- 描画 ----
+  function buildRows() {
+    GROUP_ORDER.forEach(function (groupKey) {
+      var container = document.querySelector('.check-list[data-group="' + groupKey + '"]');
+      if (!container) return;
+      var group = ITEMS[groupKey];
+      var noteLabels = group.noteLabels || {};
+
+      group.rows.forEach(function (row) {
+        var id = row[0], scenario = row[1], expect = row[2];
+        var e = entry(id);
+
+        var rowEl = document.createElement("div");
+        rowEl.className = "check-row";
+        rowEl.setAttribute("data-id", id);
+        rowEl.setAttribute("data-current", e.state);
+
+        // id col
+        var idEl = document.createElement("div");
+        idEl.className = "check-id";
+        idEl.textContent = id;
+        rowEl.appendChild(idEl);
+
+        // body col
+        var bodyEl = document.createElement("div");
+        bodyEl.className = "check-body";
+        var scn = document.createElement("div");
+        scn.className = "scenario";
+        scn.textContent = scenario;
+        var exp = document.createElement("div");
+        exp.className = "expect";
+        exp.textContent = expect;
+        bodyEl.appendChild(scn);
+        bodyEl.appendChild(exp);
+        rowEl.appendChild(bodyEl);
+
+        // controls
+        var controls = document.createElement("div");
+        controls.className = "check-controls";
+
+        var group3 = document.createElement("div");
+        group3.className = "toggle-group";
+        STATES.forEach(function (st) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.setAttribute("data-state", st);
+          btn.setAttribute("aria-pressed", e.state === st ? "true" : "false");
+          btn.textContent = STATE_LABEL[st];
+          btn.addEventListener("click", function () {
+            setState(id, st);
+          });
+          group3.appendChild(btn);
+        });
+        controls.appendChild(group3);
+
+        var note = document.createElement("input");
+        note.type = "text";
+        note.className = "check-note";
+        note.value = e.note || "";
+        note.placeholder = (noteLabels[id] || "メモ") + " を記録";
+        note.setAttribute("data-note-for", id);
+        note.addEventListener("input", function () {
+          entry(id).note = note.value;
+          save();
+          // メモは即時カウンタに影響しないので再集計不要
+        });
+        controls.appendChild(note);
+
+        rowEl.appendChild(controls);
+        container.appendChild(rowEl);
+      });
+    });
+  }
+
+  function setState(id, st) {
+    entry(id).state = st;
+    save();
+    // ボタンの押下状態更新
+    var rowEl = document.querySelector('.check-row[data-id="' + id + '"]');
+    if (rowEl) {
+      rowEl.setAttribute("data-current", st);
+      var btns = rowEl.querySelectorAll('.toggle-group button');
+      btns.forEach(function (b) {
+        b.setAttribute("aria-pressed", b.getAttribute("data-state") === st ? "true" : "false");
+      });
+    }
+    updateCounters();
+  }
+
+  function allIds() {
+    var ids = [];
+    GROUP_ORDER.forEach(function (g) {
+      ITEMS[g].rows.forEach(function (r) { ids.push(r[0]); });
+    });
+    return ids;
+  }
+
+  function updateCounters() {
+    var ids = allIds();
+    var pass = 0, fail = 0, idle = 0;
+    ids.forEach(function (id) {
+      var s = (store[id] && store[id].state) || "idle";
+      if (s === "pass") pass++;
+      else if (s === "fail") fail++;
+      else idle++;
+    });
+    document.getElementById("cnt-pass").textContent = pass;
+    document.getElementById("cnt-fail").textContent = fail;
+    document.getElementById("cnt-idle").textContent = idle;
+    document.getElementById("cnt-total").textContent = ids.length;
+  }
+
+  // ---- Markdown 出力 ----
+  function buildMarkdown() {
+    var ids = allIds();
+    var pass = 0, fail = 0, idle = 0;
+    ids.forEach(function (id) {
+      var s = (store[id] && store[id].state) || "idle";
+      if (s === "pass") pass++; else if (s === "fail") fail++; else idle++;
+    });
+
+    var lines = [];
+    lines.push("# G2 Run HUD v0.5.0 実機 QA 結果");
+    lines.push("");
+    lines.push("- 日付: 2026-05-31");
+    lines.push("- ehpk: `g2-run-hud-0.5.0.ehpk`");
+    lines.push("- SHA256: `3f71672c4b300e6e2d4016b54d1a9c2128e562df21de3c608a478eb9f985e378`");
+    lines.push("- 進捗: PASS " + pass + " / FAIL " + fail + " / 未 " + idle + "（全 " + ids.length + " 項目）");
+    lines.push("");
+
+    GROUP_ORDER.forEach(function (g) {
+      var group = ITEMS[g];
+      var noteLabels = group.noteLabels || {};
+      lines.push("## " + group.title);
+      lines.push("");
+      lines.push("| ID | シナリオ | 状態 | 記録 |");
+      lines.push("| --- | --- | --- | --- |");
+      group.rows.forEach(function (r) {
+        var id = r[0];
+        var e = store[id] || { state: "idle", note: "" };
+        var stLabel = STATE_LABEL[e.state] || "未";
+        var note = (e.note || "").replace(/\|/g, "\\|").replace(/\n/g, " ");
+        var scenario = r[1].replace(/\|/g, "\\|");
+        lines.push("| " + id + " | " + scenario + " | " + stLabel + " | " + note + " |");
+      });
+      lines.push("");
+    });
+
+    return lines.join("\n");
+  }
+
+  function showToast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function () { t.classList.remove("show"); }, 2200);
+  }
+
+  function copyMarkdown() {
+    var md = buildMarkdown();
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = md;
+      ta.style.position = "fixed";
+      ta.style.top = "-9999px";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      showToast(ok ? "Markdown をコピーしました" : "コピー失敗。手動で選択してください");
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(md).then(
+        function () { showToast("Markdown をコピーしました"); },
+        function () { fallback(); }
+      );
+    } else {
+      fallback();
+    }
+  }
+
+  function resetAll() {
+    store = {};
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    // UI 反映
+    allIds().forEach(function (id) {
+      var rowEl = document.querySelector('.check-row[data-id="' + id + '"]');
+      if (rowEl) {
+        rowEl.setAttribute("data-current", "idle");
+        rowEl.querySelectorAll('.toggle-group button').forEach(function (b) {
+          b.setAttribute("aria-pressed", b.getAttribute("data-state") === "idle" ? "true" : "false");
+        });
+        var note = rowEl.querySelector('.check-note');
+        if (note) note.value = "";
+      }
+    });
+    updateCounters();
+    showToast("チェックをリセットしました");
+  }
+
+  // ---- init ----
+  document.addEventListener("DOMContentLoaded", function () {
+    load();
+    buildRows();
+    updateCounters();
+    document.getElementById("btn-copy").addEventListener("click", copyMarkdown);
+    document.getElementById("btn-reset").addEventListener("click", resetAll);
+  });
+})();
+</script>
+
+</body>
+</html>
