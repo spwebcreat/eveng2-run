@@ -144,31 +144,45 @@ let storeUnsubscribe: (() => void) | null = null
 // 復帰時に正しい elapsedMs が反映される（凍結中の差分も加算される）。
 const TICK_MS = 1000
 let lastTickAt = Date.now()
-const tickTimer = setInterval(() => {
+// Date 差分で elapsedMs を進める。背景化で setInterval が凍結されても、復帰時に runTick() を
+// 1 回呼べば凍結中の差分がまとめて加算される（lastTickAt を毎回更新して二重計上を防ぐ）。
+function runTick(): void {
   const now = Date.now()
   const delta = now - lastTickAt
   lastTickAt = now
   store.tick(delta)
   // store 変化が無くても現在時刻は毎秒更新したいので、明示的に再描画
   renderAll(store.getState())
-}, TICK_MS)
+}
+const tickTimer = setInterval(runTick, TICK_MS)
 
 // ---- Wake Lock（画面 OFF 抑制）----
 // Screen Wake Lock API（iOS Safari 16.4+ / Android Chrome）で
 // バックグラウンド遷移そのものを減らす（完全防止はできないが効果あり）。
 type WakeLockSentinelLike = { release: () => Promise<void> }
 let wakeLock: WakeLockSentinelLike | null = null
+const WAKE_LOCK_MAX_RETRY = 3
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+// Wake Lock を取得する。フォーカス外などで失敗するため、最大 WAKE_LOCK_MAX_RETRY 回まで
+// 軽い backoff つきで再試行する（locked-phone QA L-5）。最終失敗時は console.warn のみ。
 async function requestWakeLock(): Promise<void> {
-  try {
-    const nav = navigator as Navigator & {
-      wakeLock?: { request: (type: 'screen') => Promise<WakeLockSentinelLike> }
+  const nav = navigator as Navigator & {
+    wakeLock?: { request: (type: 'screen') => Promise<WakeLockSentinelLike> }
+  }
+  if (!nav.wakeLock) return
+  if (wakeLock !== null) return // 既に保持済み
+  for (let attempt = 1; attempt <= WAKE_LOCK_MAX_RETRY; attempt++) {
+    try {
+      wakeLock = await nav.wakeLock.request('screen')
+      return
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (attempt >= WAKE_LOCK_MAX_RETRY) {
+        console.warn(`[g2-run-hud] wake lock failed ${attempt} times:`, msg)
+      } else {
+        await delay(300 * attempt)
+      }
     }
-    if (!nav.wakeLock) return
-    wakeLock = await nav.wakeLock.request('screen')
-  } catch (err: unknown) {
-    // ユーザーがフォーカスしていない状態などで失敗するが、その場合は無視
-    const msg = err instanceof Error ? err.message : String(err)
-    console.warn('[g2-run-hud] wake lock request failed:', msg)
   }
 }
 async function releaseWakeLock(): Promise<void> {
@@ -189,13 +203,13 @@ async function releaseWakeLock(): Promise<void> {
 //   3. 経過時間は Date 差分計算なので別途リセット不要（tick が次回呼ばれた時に補正される）
 const onVisibilityChange = (): void => {
   if (document.visibilityState === 'visible') {
-    // 復帰: 再描画 + GPS 再起動 + Wake Lock 再取得
-    renderAll(store.getState())
+    // 復帰: 凍結中の経過時間を runTick で一括補正（Date 差分）+ 再描画
+    runTick()
     const state = store.getState()
     const isActive = state.status === 'running' || state.isAutoPaused
     if (isActive && geoHandle !== null) {
       geoHandle.restart()
-      elStatusGeo.textContent = 'GPS 再起動（復帰）'
+      elStatusGeo.textContent = 'GPS 復帰中…'
     }
     // 計測中（running / 自動 pause）だけ Wake Lock を再取得（idle 中は不要）
     if (isActive) {
@@ -792,7 +806,23 @@ window.addEventListener('beforeunload', () => {
   void cleanup()
 })
 
-// 起動：bridge 接続 + 履歴 + 設定の初回ロード（並列）
+// ---- Service Worker（PWA offline・network-first で staleness 回避）----
+// 主目的は Hub 審査の offline test 通過。network-first なのでオンライン時は常に最新を取得し、
+// オフライン時のみキャッシュにフォールバックする（version bump 時の古い UI 残存を防ぐ）。
+// 登録失敗（Hub WebView 未対応 等）はアプリ動作に影響させない。実機での挙動は L-6 で要確認。
+function registerServiceWorker(): void {
+  if (!('serviceWorker' in navigator)) return
+  window.addEventListener('load', () => {
+    // 相対パス 'sw.js' で登録（Hub がサブパス配信でも解決できるように）
+    navigator.serviceWorker.register('sw.js').catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.warn('[g2-run-hud] service worker registration failed:', msg)
+    })
+  })
+}
+
+// 起動：bridge 接続 + 履歴 + 設定の初回ロード（並列）+ Service Worker 登録
 void bootstrapBridge()
 void refreshHistory()
 void refreshSettings()
+registerServiceWorker()
