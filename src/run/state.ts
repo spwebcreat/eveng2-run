@@ -8,7 +8,7 @@
 
 import { averagePaceSecPerKm, currentPaceSecPerKm, haversineDistanceM } from './pace'
 import { detectLap } from './lap'
-import type { RunHistoryEntry } from '../storage/types'
+import type { RunHistoryEntry, TrackPoint } from '../storage/types'
 
 export type Status = 'idle' | 'running' | 'paused'
 export type ScreenMode = 'idle' | 'gps-waiting' | 'running' | 'paused' | 'lap' | 'error'
@@ -21,6 +21,8 @@ export interface GeoPosition {
   lat: number
   lng: number
   accuracy?: number
+  /** GPS 高度（m）。取得できなければ undefined。GPX 書き出しの ele に使う。*/
+  altitude?: number
   timestamp: number
 }
 
@@ -47,6 +49,11 @@ export interface RunState {
   positions: ReadonlyArray<GeoPosition>
   currentLapKm: number
   laps: ReadonlyArray<Lap>
+  /**
+   * 走行中の GPS サンプリング点（GPX 書き出し用・schema v2）。
+   * 走行中 5 秒ごとに 1 点。pause/resume を跨いで保持し、reset 時に履歴へ書き込む。
+   */
+  trackpoints: ReadonlyArray<TrackPoint>
   /**
    * v0.9 BLE 外部心拍センサー連携用の予約フィールド。
    * v0.5 では一切 set しない（型予約のみ）。グラス container ID 15 も同用途で予約済み。
@@ -86,6 +93,8 @@ export interface RunState {
 const LAP_DISPLAY_MS = 6000 // ラップ画面表示時間（5〜8 秒の中央値）
 const ACCURACY_GATE_M = 30 // accuracy > 30m は無視（仕様書 §8）
 const MAX_SANE_JUMP_M = 200 // 1 サンプル間の異常ジャンプ閾値（停止中の GPS ドリフト対策）
+const TRACKPOINT_INTERVAL_MS = 5_000 // 走行中の GPS 記録間隔（GPX 用）
+const TRACKPOINT_MAX = 10_000 // 記録上限（5 秒 × 10,000 ≈ 13.8 時間）
 
 // 自動 pause / resume の閾値（Apple Watch のワークアウト相当）
 const AUTO_PAUSE_WINDOW_MS = 30_000 // 直近 30 秒
@@ -396,6 +405,15 @@ export class RunStore {
     // 直近 60 サンプル保持（currentPace 計算窓を超える分は捨てる）
     const newPositions: GeoPosition[] = [...this.state.positions, pos].slice(-60)
 
+    // GPX 用 trackpoint サンプリング（running 中・5 秒に 1 回・最大 TRACKPOINT_MAX 点）
+    const lastTp = this.state.trackpoints[this.state.trackpoints.length - 1]
+    const newTrackpoints =
+      lastTp === undefined || pos.timestamp - lastTp.t >= TRACKPOINT_INTERVAL_MS
+        ? [...this.state.trackpoints, buildTrackPoint(pos, this.state.currentPaceSecPerKm)].slice(
+            -TRACKPOINT_MAX,
+          )
+        : this.state.trackpoints
+
     // GPS モードで gps-waiting / error の場合は running へ遷移
     const wasWaitingOrError =
       this.state.screenMode === 'gps-waiting' || this.state.screenMode === 'error'
@@ -405,6 +423,7 @@ export class RunStore {
       ...this.state,
       lastPosition: pos,
       positions: newPositions,
+      trackpoints: newTrackpoints,
       distanceM: newDistance,
       screenMode: newScreenMode,
       errorMessage: wasWaitingOrError ? null : this.state.errorMessage,
@@ -500,7 +519,19 @@ function buildHistoryEntry(state: RunState): RunHistoryEntry {
     elapsedMs: state.elapsedMs,
     averagePaceSecPerKm: state.averagePaceSecPerKm,
     laps: [...state.laps],
+    schemaVersion: 2,
+    trackpoints: [...state.trackpoints],
   }
+}
+
+/**
+ * GeoPosition から GPX 用 TrackPoint を組み立てる。altitude / pace は取得できた時のみ含める。
+ */
+function buildTrackPoint(pos: GeoPosition, pace: number | null): TrackPoint {
+  const tp: TrackPoint = { t: pos.timestamp, lat: pos.lat, lon: pos.lng }
+  if (pos.altitude !== undefined && Number.isFinite(pos.altitude)) tp.ele = pos.altitude
+  if (pace !== null && Number.isFinite(pace) && pace > 0) tp.pace = pace
+  return tp
 }
 
 function createInitialState(overrides?: Partial<Pick<RunState, 'mode'>>): RunState {
@@ -518,6 +549,7 @@ function createInitialState(overrides?: Partial<Pick<RunState, 'mode'>>): RunSta
     positions: [],
     currentLapKm: 0,
     laps: [],
+    trackpoints: [],
     message: null,
     errorMessage: null,
     isAutoPaused: false,

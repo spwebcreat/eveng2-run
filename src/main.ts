@@ -20,6 +20,7 @@ import { createBrowserStorageAdapter } from './storage/browser-adapter'
 import { createSdkStorageAdapter } from './storage/sdk-adapter'
 import { appendHistory, clearHistory, loadHistory } from './storage/run-history'
 import { createEmptyHistory, type RunHistory } from './storage/types'
+import { runHistoryEntryToGpx, gpxFileName } from './export/gpx'
 
 // ---- DOM 取得（必須要素は型ガード） ----
 function $(id: string): HTMLElement {
@@ -442,10 +443,18 @@ function createHistoryEntryElement(entry: RunHistory['entries'][number]): HTMLDe
   summary.appendChild(stats)
   details.appendChild(summary)
 
-  if (entry.laps.length > 0) {
-    const detail = document.createElement('div')
-    detail.className = 'history-detail'
+  // 展開部: GPX 書き出しボタン（全エントリで利用可）+ LAP 詳細（あれば）
+  const detail = document.createElement('div')
+  detail.className = 'history-detail'
 
+  const gpxBtn = document.createElement('button')
+  gpxBtn.type = 'button'
+  gpxBtn.className = 'btn-ghost gpx-export'
+  gpxBtn.textContent = 'GPX で書き出し'
+  gpxBtn.addEventListener('click', () => downloadGpx(entry))
+  detail.appendChild(gpxBtn)
+
+  if (entry.laps.length > 0) {
     const h4 = document.createElement('h4')
     h4.textContent = 'LAP 詳細'
     detail.appendChild(h4)
@@ -466,10 +475,32 @@ function createHistoryEntryElement(entry: RunHistory['entries'][number]): HTMLDe
       ol.appendChild(li)
     }
     detail.appendChild(ol)
-    details.appendChild(detail)
   }
 
+  details.appendChild(detail)
   return details
+}
+
+/**
+ * 履歴 1 件を GPX に変換して端末にダウンロードする（旦那様がボタンを押した時のみ実行）。
+ * Blob URL を生成して a 要素クリックで保存。外部送信はしない。
+ */
+function downloadGpx(entry: RunHistory['entries'][number]): void {
+  try {
+    const xml = runHistoryEntryToGpx(entry)
+    const blob = new Blob([xml], { type: 'application/gpx+xml' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = gpxFileName(entry)
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[g2-run-hud] GPX export failed:', msg)
+  }
 }
 
 /**

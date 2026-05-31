@@ -4,14 +4,34 @@
 import type { Lap, RunMode } from '../run/state'
 
 /**
+ * GPX 書き出し用の走行中サンプリング点（schema v2 で追加）。
+ * 走行中 5 秒ごとに 1 点記録する。v0.4.0 までの古い履歴には存在しない（undefined）。
+ */
+export interface TrackPoint {
+  /** epoch ms */
+  t: number
+  lat: number
+  lon: number
+  /** GPS 高度（m）。取得できなければ undefined。*/
+  ele?: number
+  /** その時点の現在ペース（秒/km）。算出不能なら undefined。*/
+  pace?: number
+}
+
+/**
  * 1 件分の走行履歴。reset 時に distanceM > 0 なら自動保存される。
  *
  * Lap[] は読み取り側で再構成可能なように readonly ではなく可変として保存（JSON 化のため）。
  * 元の RunState.laps は ReadonlyArray<Lap> だが、保存時にコピーする。
+ *
+ * schema v2（v0.5）で schemaVersion / trackpoints を追加。両方とも optional にして
+ * v0.4.0 までの古いデータ（schemaVersion / trackpoints 無し）をそのまま読み込めるようにする。
  */
 export interface RunHistoryEntry {
   /** 一意 ID。timestamp ベース + ランダム要素で衝突回避。*/
   id: string
+  /** エントリの schema バージョン。v0.5 以降の新規保存は 2。古いデータは undefined（=1 扱い）。*/
+  schemaVersion?: 2
   /** 走行開始時刻（Date.now() ベース）。*/
   startedAt: number
   /** 走行終了時刻（reset 直前の Date.now()）。*/
@@ -26,6 +46,8 @@ export interface RunHistoryEntry {
   averagePaceSecPerKm: number | null
   /** LAP 配列のスナップショット。*/
   laps: Lap[]
+  /** 走行中の GPS サンプリング点（schema v2）。古いデータは undefined。*/
+  trackpoints?: TrackPoint[]
 }
 
 /**

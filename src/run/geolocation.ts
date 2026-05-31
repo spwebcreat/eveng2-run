@@ -73,6 +73,7 @@ export function startGeolocation(options: GeolocationOptions): GeolocationHandle
           lat: coords.latitude,
           lng: coords.longitude,
           accuracy: coords.accuracy,
+          altitude: coords.altitude ?? undefined, // GPX ele 用（取得不可なら undefined）
           timestamp: geoPosition.timestamp,
         })
       },
