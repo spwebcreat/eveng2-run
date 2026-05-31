@@ -12,15 +12,15 @@
 //   ハネられるため、**画面全体に 1 個だけ** 透明イベントキャプチャ container を置き、
 //   他 text container は全て `isEventCapture: 0` で表示専用にする。
 //
-// コンテナ構成（text 8 / image 0 / total 8 / containerTotalNum 1~12）:
+// コンテナ構成（text 7 / image 0 / total 7 / containerTotalNum 1~12）:
 //   Text  T0: 透明イベントキャプチャ          位置 (x=0,    y=0,   w=576, h=288, isEventCapture=1)
 //   Text  T1: 経過時間（上段左）              位置 (x=4,    y=8,   w=180, h=80)
 //   Text  T2: 距離（上段中）                  位置 (x=200,  y=8,   w=180, h=80)
 //   Text  T3: 日付・時刻（上段右）            位置 (x=394,  y=8,   w=178, h=80)
 //   Text  T4: メッセージ表示領域（中央）      位置 (x=40,   y=110, w=496, h=70)
-//   Text  T5: 心拍数（下段左）                位置 (x=4,    y=200, w=180, h=80)
 //   Text  T6: 平均ペース（下段中）            位置 (x=200,  y=200, w=180, h=80)
 //   Text  T7: ステータス（下段右・記号付き）  位置 (x=394,  y=200, w=178, h=80)
+//   ※ v0.5 で 心拍（旧 T5・下段左 x=4,y=200）を削除。container ID 15 は v0.9 BLE 外部 HR 表示用に予約。
 
 import {
   CreateStartUpPageContainer,
@@ -30,6 +30,7 @@ import {
   type EvenAppBridge,
   type EvenHubEvent,
 } from '@evenrealities/even_hub_sdk'
+import { cleanForG2Safe } from './text-clean-safe'
 
 // ---- 画面定数 ----
 const BORDER_COLOR = 0 // 公式 image テンプレ準拠（borderWidth=0 でも縦線が見える事故を回避）
@@ -42,7 +43,7 @@ export const CONTAINER_IDS = {
   textDistance: 12,
   textClock: 13,
   textMessage: 14,
-  textHr: 15,
+  // 15 は v0.5 で削除した心拍表示の ID。v0.9 BLE 外部 HR 表示で復活予定のため予約（再利用しない）
   textPace: 16,
   textStatus: 17,
 } as const
@@ -83,8 +84,7 @@ const TEXT_SLOTS: ReadonlyArray<TextSlot> = [
   { id: CONTAINER_IDS.textClock, name: 'g2-clock', xPosition: 394, yPosition: 8, width: 178, height: 80, isEventCapture: false },
   // 中央: メッセージ表示領域
   { id: CONTAINER_IDS.textMessage, name: 'g2-msg', xPosition: 40, yPosition: 110, width: 496, height: 70, isEventCapture: false },
-  // 下段: 心拍数 / 平均ペース / ステータス
-  { id: CONTAINER_IDS.textHr, name: 'g2-hr', xPosition: 4, yPosition: 200, width: 180, height: 80, isEventCapture: false },
+  // 下段: 平均ペース / ステータス（下段左 x=4 は v0.5 で心拍削除につき空き・v0.9 BLE HR 用に確保）
   { id: CONTAINER_IDS.textPace, name: 'g2-pace', xPosition: 200, yPosition: 200, width: 180, height: 80, isEventCapture: false },
   { id: CONTAINER_IDS.textStatus, name: 'g2-status', xPosition: 394, yPosition: 200, width: 178, height: 80, isEventCapture: false },
 ]
@@ -131,6 +131,13 @@ export async function attachG2Hud(
   // 初期 content は半角スペース ' ' をデフォルトに。空文字 '' だと SDK が「変更なし」と
   // 解釈して既存テキストが残るケースがある（特に textContainerUpgrade で後から空にしたい場面）。
   // 公式 image テンプレに倣い、events 専用 container は paddingLength=0、表示用は 4。
+  // v0.5-6: emoji / 未対応 Unicode を SDK へ渡す前に除去（▶◀●○ や空白は保護する safe wrapper）。
+  // 除去後に空文字になったら半角スペースで送る（空文字は SDK が「変更なし」扱いにして前回値が残るため）。
+  const sanitize = (s: string): string => {
+    const cleaned = cleanForG2Safe(s)
+    return cleaned === '' ? ' ' : cleaned
+  }
+
   const textObjects = TEXT_SLOTS.map(
     (slot) =>
       new TextContainerProperty({
@@ -143,7 +150,7 @@ export async function attachG2Hud(
         paddingLength: slot.isEventCapture ? 0 : PADDING,
         containerID: slot.id,
         containerName: slot.name,
-        content: initialTexts.get(slot.id) ?? ' ',
+        content: sanitize(initialTexts.get(slot.id) ?? ' '),
         isEventCapture: slot.isEventCapture ? 1 : 0,
       }),
   )
@@ -167,7 +174,7 @@ export async function attachG2Hud(
   // 初期化時に送った content を lastSent に記録
   for (const slot of TEXT_SLOTS) {
     const initial = initialTexts.get(slot.id)
-    if (initial !== undefined) lastSent.set(slot.id, initial)
+    if (initial !== undefined) lastSent.set(slot.id, sanitize(initial))
   }
 
   const render = (map: RenderMap): Promise<void> => {
@@ -175,8 +182,8 @@ export async function attachG2Hud(
       for (const slot of TEXT_SLOTS) {
         const requested = map.get(slot.id)
         if (requested === undefined) continue // 指定なし = 前回値維持
-        // 空文字は SDK 側で「変更なし」扱いになり前回値が残るため、半角スペースで送る
-        const next = requested === '' ? ' ' : requested
+        // v0.5-6: emoji / 未対応文字を除去 + 空文字を半角スペース化（SDK の「変更なし」回避）
+        const next = sanitize(requested)
         if (lastSent.get(slot.id) === next) continue // 同一なら再送しない
         try {
           const ok = await bridge.textContainerUpgrade(

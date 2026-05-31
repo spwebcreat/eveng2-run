@@ -47,7 +47,17 @@ export interface RunState {
   positions: ReadonlyArray<GeoPosition>
   currentLapKm: number
   laps: ReadonlyArray<Lap>
-  heartRateBpm: number | null
+  /**
+   * v0.9 BLE 外部心拍センサー連携用の予約フィールド。
+   * v0.5 では一切 set しない（型予約のみ）。グラス container ID 15 も同用途で予約済み。
+   * 内蔵 HR は SDK に API が無く取得不能のため v0.5 で削除済み。
+   */
+  readonly externalHr?: {
+    bpm: number
+    source: 'ble'
+    sensor: string // device name
+    receivedAt: number // epoch ms
+  } | null
   message: string | null
   errorMessage: string | null
   /**
@@ -508,7 +518,6 @@ function createInitialState(overrides?: Partial<Pick<RunState, 'mode'>>): RunSta
     positions: [],
     currentLapKm: 0,
     laps: [],
-    heartRateBpm: null,
     message: null,
     errorMessage: null,
     isAutoPaused: false,

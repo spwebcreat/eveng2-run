@@ -43,11 +43,5 @@ export function formatDistance(meters: number): string {
   return km.toFixed(2)
 }
 
-/**
- * 心拍数 bpm を "HR -- bpm" or "HR 142 bpm" に整形
- * - MVP では常に "HR -- bpm"（heartRateBpm は null 固定）
- */
-export function formatHeartRate(bpm: number | null): string {
-  if (bpm === null || !Number.isFinite(bpm)) return 'HR -- bpm'
-  return `HR ${Math.round(bpm)} bpm`
-}
+// formatHeartRate は v0.5 で内蔵心拍 UI 削除に伴い撤去（SDK に HR API なし）。
+// v0.9 で BLE 外部 HR を採用する際は externalHr (RunState) 用の整形関数を新設する。

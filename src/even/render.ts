@@ -84,14 +84,6 @@ function statusWithPage(state: RunState): string {
 }
 
 /**
- * 心拍表示（MVP では常に "-- bpm"）
- */
-function heartRateText(state: RunState): string {
-  if (state.heartRateBpm === null || !Number.isFinite(state.heartRateBpm)) return '-- bpm'
-  return `${Math.round(state.heartRateBpm)} bpm`
-}
-
-/**
  * 中央メッセージ領域の内容を決定。
  * - idle: "START ◀"（タップで開始の視覚的ヒント・中央寄せ）
  * - paused: "END   長押しで終了"（長押しは G2 ハードレベルでアプリ終了するため文言のみ・中央寄せ）
@@ -190,8 +182,8 @@ function renderPage1(state: RunState, now: Date): RenderMap {
   // 中央: メッセージ表示領域
   map.set(CONTAINER_IDS.textMessage, messageText(state))
 
-  // 下段: 心拍数 / 平均ペース / ステータス（mode + ページインジケータ込み）
-  map.set(CONTAINER_IDS.textHr, `心拍数\n${heartRateText(state)}`)
+  // 下段: 平均ペース / ステータス（mode + ページインジケータ込み）。
+  // 下段左 (旧 心拍) は v0.5 で削除。container ID 15 は v0.9 BLE 外部 HR 表示用に予約。
   map.set(CONTAINER_IDS.textPace, `平均ペース\n${formatPace(state.averagePaceSecPerKm)}/km`)
   map.set(CONTAINER_IDS.textStatus, statusWithPage(state))
 
@@ -213,7 +205,6 @@ function renderCenterOnly(state: RunState, centerText: string): RenderMap {
   map.set(CONTAINER_IDS.textDistance, blank)
   map.set(CONTAINER_IDS.textClock, blank)
   map.set(CONTAINER_IDS.textMessage, centerText)
-  map.set(CONTAINER_IDS.textHr, blank)
   map.set(CONTAINER_IDS.textPace, blank)
   // ステータス + ページインジケータは Page 2/3 でも表示（現在ページを示すため）
   map.set(CONTAINER_IDS.textStatus, statusWithPage(state))

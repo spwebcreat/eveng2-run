@@ -7,17 +7,14 @@
 // v0.2.6 でテストモードを完全削除。dev 環境では EvenAppBridge 未検出のスタンドアロン
 // モードで companion UI のメトリクス表示確認のみ可能（GPS は実機 Hub アップロード後）。
 
-import {
-  attachG2Hud,
-  waitForBridge,
-  type G2HudHandle,
-  type RenderMap,
-} from './even/bridge'
+import { waitForBridge, type RenderMap } from './even/bridge'
 import { routeEvent } from './even/input'
 import { renderForState } from './even/render'
+import { selectRenderer } from './even/select-renderer'
+import type { RendererPort } from './even/renderer-port'
 import { RunStore, type RunState } from './run/state'
 import { startGeolocation, type GeolocationHandle } from './run/geolocation'
-import { formatDistance, formatPace, formatTime, formatHeartRate } from './run/format'
+import { formatDistance, formatPace, formatTime } from './run/format'
 import type { StoragePort } from './storage/ports'
 import { createBrowserStorageAdapter } from './storage/browser-adapter'
 import { createSdkStorageAdapter } from './storage/sdk-adapter'
@@ -35,7 +32,6 @@ const elHudPreview = $('hud-preview')
 const elMetricDistance = $('metric-distance')
 const elMetricAvgPace = $('metric-avg-pace')
 const elMetricTime = $('metric-time')
-const elMetricHr = $('metric-hr')
 const elBtnStartPause = $('btn-start-pause') as HTMLButtonElement
 const elBtnReset = $('btn-reset') as HTMLButtonElement
 const elLapsContainer = $('laps-container')
@@ -77,7 +73,8 @@ let geoHandle: GeolocationHandle | null = null
 // 同期 onError 経由の再入を防ぐ sentinel（F8 と組み合わせの二重ガード）
 let geoStarting = false
 
-let g2Handle: G2HudHandle | null = null
+// 描画は RendererPort 抽象経由（v0.5-2）。v0.5 では text renderer のみ。
+let renderer: RendererPort | null = null
 let g2Unsubscribe: (() => void) | null = null
 
 // store.subscribe の unsubscribe（W4 cleanup 対応）
@@ -193,11 +190,10 @@ function syncPositionSourceFor(state: RunState): void {
   }
 }
 
-// ---- G2 への描画（multi-container RenderMap） ----
+// ---- G2 への描画（RendererPort 経由） ----
 function renderToG2(state: RunState, now: Date): void {
-  if (g2Handle === null) return
-  const map = renderForState(state, now)
-  g2Handle.render(map).catch((err: unknown) => {
+  if (renderer === null) return
+  renderer.render(state, now).catch((err: unknown) => {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[g2-run-hud] render failed:', msg)
     // 失敗時は bridge 側で lastSent を更新しないので次の tick で自動再送される
@@ -213,7 +209,6 @@ function renderToDom(state: RunState, renderMap: RenderMap): void {
   elMetricDistance.textContent = `${formatDistance(state.distanceM)} km`
   elMetricAvgPace.textContent = `${formatPace(state.averagePaceSecPerKm)}/km`
   elMetricTime.textContent = formatTime(state.elapsedMs)
-  elMetricHr.textContent = formatHeartRate(state.heartRateBpm).replace(/^HR\s*/, '')
 
   // ボタン状態
   if (state.status === 'idle') {
@@ -250,7 +245,7 @@ function renderToDom(state: RunState, renderMap: RenderMap): void {
   }
 
   // アクションヒント（ブリッジ接続後のみ表示）
-  if (g2Handle !== null) {
+  if (renderer !== null) {
     elActionHint.style.display = 'block'
   }
 
@@ -268,7 +263,7 @@ function formatHudPreview(map: RenderMap): string {
   return [
     `[経過]   ${get(11)}   |   [距離]    ${get(12)}   |   [日時]     ${get(13)}`,
     `[メッセージ]   ${get(14)}`,
-    `[心拍]   ${get(15)}   |   [ペース]   ${get(16)}   |   [ステータス] ${get(17)}`,
+    `[ペース]   ${get(16)}   |   [ステータス] ${get(17)}`,
   ].join('\n')
 }
 
@@ -494,8 +489,8 @@ function renderAll(state: RunState): void {
   const now = new Date()
   const map = renderForState(state, now)
   renderToDom(state, map)
-  if (g2Handle !== null) {
-    g2Handle.render(map).catch((err: unknown) => {
+  if (renderer !== null) {
+    renderer.render(state, now).catch((err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err)
       console.error('[g2-run-hud] render failed:', msg)
     })
@@ -598,22 +593,24 @@ async function bootstrapBridge(): Promise<void> {
 
   const bridge = raceResult
   try {
-    const initialMap = renderForState(store.getState(), new Date())
-    const handle = await attachG2Hud(bridge, initialMap)
+    // RendererPort 選択（?renderer=image は v0.6 未実装のため text フォールバック）
+    const selection = selectRenderer()
+    await selection.renderer.init(bridge, store.getState())
     if (timedOut) {
-      // 競争上ありえないパスだが、安全のため late attach した handle は即 shutdown
-      await handle.shutdown(0)
+      // 競争上ありえないパスだが、安全のため late init した renderer は即 shutdown
+      await selection.renderer.shutdown(0)
       return
     }
-    g2Handle = handle
+    renderer = selection.renderer
     elStatusBridge.setAttribute('data-state', 'connected')
-    elStatusBridge.textContent = '接続済'
+    elStatusBridge.textContent =
+      selection.fallbackNote === null ? '接続済' : `接続済（${selection.fallbackNote}）`
 
     // Hub 接続後は SDK storage を優先（Hub 内 WebView でも永続化を担保）
     storagePort = createSdkStorageAdapter(bridge)
     void refreshHistory()
 
-    g2Unsubscribe = g2Handle.onEvent((event) => {
+    g2Unsubscribe = renderer.onEvent((event) => {
       routeEvent(event, {
         store,
         onSystemExit: () => {
@@ -626,7 +623,7 @@ async function bootstrapBridge(): Promise<void> {
     renderToG2(store.getState(), new Date())
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn('[g2-run-hud] attachG2Hud failed:', msg)
+    console.warn('[g2-run-hud] renderer init failed:', msg)
     elStatusBridge.setAttribute('data-state', 'error')
     elStatusBridge.textContent = `G2 接続エラー: ${msg}`
   }
@@ -680,13 +677,13 @@ async function cleanup(): Promise<void> {
   clearInterval(tickTimer)
 
   // G2 shutdown（自動 cleanup = exitMode 0）
-  if (g2Handle !== null) {
+  if (renderer !== null) {
     try {
-      await g2Handle.shutdown(0)
+      await renderer.shutdown(0)
     } catch {
       /* noop */
     }
-    g2Handle = null
+    renderer = null
   }
   store.dispose()
 }
